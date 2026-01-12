@@ -1,4 +1,4 @@
-from flask import Flask, render_template, Response, request
+from flask import Flask, render_template, Response, request, redirect, url_for
 import sqlite3
 import os
 import cv2
@@ -23,7 +23,6 @@ def login():
         username=request.form['username']
         password=request.form['password']
 
-        
         connection = sqlite3.connect(db_path)
         cursor = connection.cursor()
 
@@ -39,13 +38,28 @@ def login():
             return render_template("workoutSession.html")
         else:
             return "Invalid login"
-        
-
-
-
     else:
         request.method='GET'
         return render_template('login.html')
+    
+@app.route('/register',methods=['POST','GET'])
+def register():
+
+    if request.method=='POST':
+        username=request.form['username']
+        password=request.form['password']
+
+        connection=sqlite3.connect(db_path)
+        cursor=connection.cursor()
+
+        cursor.execute("INSERT INTO UserLogins (username,password) VALUES (?,?)",(username,password))   
+        connection.commit()
+        connection.close()
+        return redirect(url_for('login'))
+
+
+    return render_template('register.html')
+
 
 def generate_frames():
     while True:

@@ -12,28 +12,15 @@
 <img src="{{ url_for('static', filename='logo.png') }}" style="display: block; margin: 100px auto 0" alt="Logo">
 
         <h1>
-            Log in
+            Register!
         </h1>    
-
         <div class="form-container" >
-            <form action="{{ url_for('login') }}" method="POST">
-                <input name="username" type="text" placeholder="Username">
-                <input name="password" type="password" placeholder="Password">
-                <button type="submit">go!</button>
-                <a href="/register">
-                     <button type="button">register!</button>
-                </a>
-               
-
+            <form action="{{ url_for('register') }}" method="POST">
+                <input name="username"  placeholder="choose a username">
+                <input name="password"  placeholder="choose a password">
+                <button type="submit">back to login!</button>
             </form>
         </div>
-
-
-
-
-
     </div>
-
-
 </body>
 </html>
