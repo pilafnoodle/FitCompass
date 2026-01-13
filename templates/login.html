@@ -1,39 +1,69 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Home</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+  <meta charset="UTF-8">
+  <title>FitCompass - Login</title>
+
+  <style>
+    body{
+      margin:0;
+      font-family:ui-monospace, Menlo, Consolas, monospace;
+      background:#0f2330;
+      color:white;
+      height:100vh;
+      display:flex;
+      justify-content:center;
+      align-items:center;
+    }
+
+    .card{
+      background:#d8eff4;
+      color:#000;
+      padding:40px;
+      border-radius:14px;
+      width:360px;
+      text-align:center;
+      box-shadow:0 10px 30px rgba(0,0,0,.3);
+    }
+
+    input{
+      width:100%;
+      padding:12px;
+      margin:10px 0;
+      border-radius:8px;
+      border:1px solid #ccc;
+    }
+
+    button{
+      width:100%;
+      padding:12px;
+      margin-top:12px;
+      border:none;
+      border-radius:10px;
+      background:#a9d99b;
+      font-size:16px;
+      cursor:pointer;
+    }
+
+    .link{
+      margin-top:14px;
+      display:block;
+    }
+  </style>
 </head>
 
 <body>
-    <div style="text-align: center">
-<img src="{{ url_for('static', filename='logo.png') }}" style="display: block; margin: 100px auto 0" alt="Logo">
+  <div class="card">
+    <img src="logo.png" alt="FitCompass logo" style="max-width:35%; max-height:35%;" />
+    <p>Log in</p>
 
-        <h1>
-            Log in
-        </h1>    
+    <form method="POST">
+      <input name="username" placeholder="Username" required>
+      <input name="password" type="password" placeholder="Password" required>
+      <button type="submit">Log in</button>
+    </form>
 
-        <div class="form-container" >
-            <form action="{{ url_for('login') }}" method="POST">
-                <input name="username" type="text" placeholder="Username">
-                <input name="password" type="password" placeholder="Password">
-                <button type="submit">go!</button>
-                <a href="/register">
-                     <button type="button">register!</button>
-                </a>
-               
-
-            </form>
-        </div>
-
-
-
-
-
-    </div>
-
-
+    <a class="link" href="{{ url_for('register') }}">Create an account</a>
+  </div>
 </body>
 </html>

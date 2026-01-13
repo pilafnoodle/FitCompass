@@ -4,32 +4,32 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>FitCompass - Home</title>
+
   <style>
+    /*main colors and formatting*/
     :root{
-      --bg-main: #1f4d69;     /* dark blue */
-      --bg-sidebar: #d8eff4;  /* light blue */
-      --btn-green: #a9d99b;   /* soft green */
-      --btn-red: #d83a4a;     /* logout red */
-      --card: #d8eff4;        /* same as sidebar */
-      --text-dark: #0f1a1f;
-      --shadow: 0 10px 30px rgba(0,0,0,.18);
-      --radius: 14px;
-      --font: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --bg-main:#1f4d69;
+      --bg-sidebar:#d8eff4;
+      --btn-green:#a9d99b;
+      --btn-red:#d83a4a;
+      --card:#d8eff4;
+      --text-dark:#0f1a1f;
+      --shadow:0 10px 30px rgba(0,0,0,.18);
+      --radius:14px;
+      --font:ui-monospace, Menlo, Consolas, monospace;
     }
 
-    *{ box-sizing: border-box; }
+    *{ box-sizing:border-box; }
+    /*CSS for body of page*/
     body{
-      margin: 0;
-      font-family: var(--font);
-      background: #0f2330;
-      color: white;
-      min-height: 100vh;
+      margin:0;
+      font-family:var(--font);
+      background:#0f2330;
+      color:white;
+      min-height:100vh;
     }
 
-    .app{
-      display: flex;
-      min-height: 100vh;
-    }
+    .app{ display:flex; min-height:100vh; }
 
     /* Sidebar */
     .sidebar{
@@ -94,98 +94,49 @@
 
     /* Main */
     .main{
-      flex: 1;
-      background: var(--bg-main);
-      padding: 18px 22px 30px;
-      position: relative;
-      overflow: hidden;
+      flex:1;
+      background:var(--bg-main);
+      padding:22px;
     }
 
-    /* Top banner */
     .banner{
-      background: rgba(255,255,255,.12);
-      border: 2px solid rgba(255,255,255,.18);
-      border-radius: 12px;
-      padding: 12px 16px;
-      margin-bottom: 14px;
-      box-shadow: 0 8px 22px rgba(0,0,0,.15);
-      backdrop-filter: blur(3px);
-    }
-    .banner strong{
-      font-weight: 700;
+      background:rgba(255,255,255,.12);
+      padding:14px;
+      border-radius:12px;
+      margin-bottom:18px;
     }
 
-    /* Top row */
     .top-row{
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 14px;
-      margin-bottom: 26px;
-    }
-
-    /* Goals progress */
-    .goals-wrap{
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      width: min(560px, 60%);
-    }
-    .goals-label{
-      font-size: 16px;
-      opacity: .95;
-      white-space: nowrap;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      margin-bottom:28px;
+      gap:16px;
     }
 
     .progress{
-      position: relative;
-      flex: 1;
-      height: 34px;
-      background: rgba(255,255,255,.92);
-      border-radius: 10px;
-      overflow: hidden;
-      border: 2px solid rgba(0,0,0,.12);
-      box-shadow: 0 6px 18px rgba(0,0,0,.18);
-    }
-    .progress-fill{
-      height: 100%;
-      width: 62%; /* <-- set your percent here */
-      background: var(--btn-green);
-      border-radius: 8px;
-      display: flex;
-      align-items: center;
-      padding-left: 12px;
-      color: rgba(0,0,0,.75);
-      font-size: 16px;
+      background:white;
+      border-radius:10px;
+      height:30px;
+      width:360px;
+      overflow:hidden;
     }
 
-    /* Hover tooltip showing percentage */
-    .progress::after{
-      content: attr(data-percent);
-      position: absolute;
-      right: 10px;
-      top: 50%;
-      transform: translateY(-50%);
-      opacity: 0;
-      pointer-events: none;
-      color: rgba(0,0,0,.75);
-      font-size: 14px;
-      transition: opacity .12s ease;
-    }
-    .progress:hover::after{
-      opacity: 1;
+    .progress-fill{
+      height:100%;
+      background:var(--btn-green);
+      display:flex;
+      align-items:center;
+      padding-left:10px;
+      color:#000;
+      font-weight:bold;
     }
 
     .points{
-      background: var(--btn-green);
-      color: rgba(0,0,0,.75);
-      border-radius: 10px;
-      padding: 10px 16px;
-      min-width: 130px;
-      text-align: center;
-      border: 2px solid rgba(0,0,0,.10);
-      box-shadow: 0 6px 18px rgba(0,0,0,.18);
-      font-size: 18px;
+      background:var(--btn-green);
+      padding:10px 16px;
+      border-radius:10px;
+      font-size:18px;
     }
 
     /* Center content */
@@ -200,7 +151,7 @@
     /* Smaller logo */
     .logo-box{
       width: 180px;
-      height: 110px;
+      height: 180px;
       background: rgba(0, 0, 0, .18);
       border: 2px solid rgba(255,255,255,.12);
       border-radius: 12px;
@@ -226,148 +177,84 @@
 
     /* Recommended workout card */
     .card{
-      width: min(760px, 80%);
-      height: 280px;
-      background: var(--card);
-      border-radius: 6px;
-      box-shadow: var(--shadow);
-      display: grid;
-      place-items: center;
-      color: rgba(0,0,0,.75);
-      position: relative;
-    }
-    .card a{
-      color: rgba(0,0,0,.75);
-      text-decoration: none;
-      font-size: 32px;
-    }
-    .card a:hover{
-      text-decoration: underline;
+      background:var(--card);
+      width:70%;
+      height:260px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      border-radius:12px;
+      font-size:28px;
+      color:#000;
+      box-shadow:var(--shadow);
     }
 
     .start-btn{
-      background: var(--btn-green);
-      border: none;
-      border-radius: 10px;
-      padding: 12px 28px;
-      font-family: var(--font);
-      font-size: 22px;
-      cursor: pointer;
-      color: rgba(0,0,0,.75);
-      box-shadow: 0 10px 22px rgba(0,0,0,.22);
-      border: 2px solid rgba(0,0,0,.10);
-    }
-    .start-btn:active{ transform: translateY(1px); }
-
-    /* Responsive */
-    @media (max-width: 860px){
-      .sidebar{ width: 210px; }
-      .goals-wrap{ width: 100%; }
-      .card{ width: 92%; }
-    }
-    @media (max-width: 680px){
-      .app{ flex-direction: column; }
-      .sidebar{
-        width: 100%;
-        border-right: none;
-        border-bottom: 3px solid rgba(0,0,0,.08);
-      }
-      .top-row{
-        flex-direction: column;
-        align-items: stretch;
-      }
-      .points{ align-self: flex-end; }
+      background:var(--btn-green);
+      border:none;
+      border-radius:10px;
+      padding:14px 32px;
+      font-size:22px;
+      cursor:pointer;
     }
   </style>
 </head>
 
 <body>
-  <div class="app">
-    <!-- SIDEBAR -->
-    <aside class="sidebar">
-      <div class="sidebar-title">sidebar</div>
+<div class="app">
 
-      <nav class="nav" aria-label="Sidebar navigation">
-        <button type="button" onclick="goTo('settings.html')">settings</button>
-        <button type="button" onclick="goTo('profile.html')">profile</button>
-        <button type="button" onclick="goTo('history.html')">history</button>
-        <button type="button" onclick="goTo('shop.html')">shop</button>
-        <button type="button" onclick="goTo('library.html')">library</button>
-        <button type="button" onclick="goTo('more.html')">more</button>
-      </nav>
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-title">FitCompass</div>
 
-      <div class="logout">
-        <button type="button" onclick="logout()">log out</button>
-      </div>
-    </aside>
+    <div class="nav">
+      <button onclick="location.href='{{ url_for('profile') }}'">profile</button>
+      <button onclick="location.href='{{ url_for('history') }}'">history</button>
+      <button onclick="location.href='{{ url_for('library') }}'">library</button>
+      <button onclick="location.href='{{ url_for('shop') }}'">shop</button>
+      <button onclick="location.href='{{ url_for('settings') }}'">settings</button>
+    </div>
 
-    <!-- MAIN CONTENT -->
-    <main class="main">
-      <!-- Banner for company messages -->
-      <div class="banner" role="status" aria-live="polite">
-        <strong>Welcome to FitCompass!</strong> Let's get moving!
-      </div>
+    <div class="logout">
+      <button onclick="location.href='{{ url_for('logout') }}'">log out</button>
+    </div>
+  </aside>
 
-      <!-- Top row: Goals progress + Points -->
-      <div class="top-row">
-        <div class="goals-wrap">
-          <div class="goals-label">goals</div>
+  <!-- MAIN -->
+  <main class="main">
 
-          <!-- Update data-percent + width in .progress-fill -->
-          <div class="progress" data-percent="62%">
-            <div class="progress-fill"> </div>
-          </div>
+    <div class="banner">
+      <strong>Welcome, {{ username }}!</strong> Let’s get moving.
+    </div>
+
+    <div class="top-row">
+      <div class="progress">
+        <div class="progress-fill" style="width: {{ goal_percent }}%;">
+          {{ goal_percent }}%
         </div>
-
-        <div class="points" id="pointsBox">points</div>
       </div>
 
-      <!-- Center content -->
-      <section class="center">
-        <div class="logo-box" aria-label="FitCompass logo">
-          <!-- Replace this with your actual logo image if you want:
-               <img src="assets/fitcompass-logo.png" alt="FitCompass logo" style="max-width:100%; max-height:100%;" />
-          -->
+      <div class="points">
+        points: {{ points }}
+      </div>
+    </div>
+
+    <section class="center">
+
+      <div class="logo-box" aria-label="FitCompass logo">
           <div class="logo-text">
-            <div class="brand">FIT<br/>COMPASS</div>
-            <div class="tagline">MOVING YOU IN THE RIGHT DIRECTION</div>
+            <img src="logo.png" alt="FitCompass logo" style="max-width:100%; max-height:50%;" />
           </div>
         </div>
 
-        <div class="card">
-          <!-- Recommended Workout should link to a video later -->
-          <!-- TODO: Replace href with the actual workout video URL when ready -->
-          <a href="#" onclick="event.preventDefault(); alert('Workout video coming soon!');">
-            Recommended Workout
-          </a>
-        </div>
+      <div class="card">
+        Recommended Workout
+      </div>
 
-        <button class="start-btn" type="button" onclick="startWorkout()">START</button>
-      </section>
-    </main>
-  </div>
+      <button class="start-btn">START</button>
+    </section>
 
-  <script>
-    // Simple navigation helper
-    function goTo(path) {
-      // Redirect to another page (create these pages later)
-      window.location.href = path;
-    }
-
-    function logout() {
-      // TODO: Replace with your real logout logic (clear token, call API, etc.)
-      alert("Logged out (placeholder).");
-      // Example redirect:
-      // window.location.href = "login.html";
-    }
-
-    function startWorkout() {
-      // TODO: Replace with your real "start workout" flow
-      alert("Starting workout (placeholder).");
-    }
-
-    // OPTIONAL: set points dynamically
-    // document.getElementById("pointsBox").textContent = "points: 120";
-  </script>
+  </main>
+</div>
 </body>
 </html>
