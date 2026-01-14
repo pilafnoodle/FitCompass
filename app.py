@@ -68,6 +68,7 @@ def login():
         if user:
             session['username'] = username
             return redirect(url_for('home'))
+
         else:
             return render_template('login.html', error="Invalid username or password")
 
@@ -110,29 +111,16 @@ def home():
     goal_percent = 62
 
     return render_template(
-        'home.html',
+        'homePage.html',
         username=username,
         points=points,
         goal_percent=goal_percent
     )
 
-# -------------------------
-# All Workouts page
-# -------------------------
-@app.route('/allworkouts')
-def allworkouts():
-    if 'username' not in session:
-        return redirect(url_for('login'))
-    return render_template('all_workouts.html')
 
-
-# -------------------------
-# Logout
-# -------------------------
-@app.route('/logout')
-def logout():
-    session.clear()
-    return redirect(url_for('login'))
+@app.route('/workoutSession')
+def workoutSession():
+    return render_template("workoutSession.html")
 
 # -------------------------
 # Placeholder routes
@@ -161,6 +149,23 @@ def settings():
 def more():
     return "More page coming soon"
 
-# -------------------------
-if __name__ == "__main__":
-    app.run(debug=True)
+def generate_frames():
+    #mp_drawing = mp.solutions.drawing_utils
+    #mp_holistic = mp.solutions.holistic
+    #with mp_holistic.Holistic(min_detection_confidence=0.5, min_tracking_confidence=0.5) as holistic:
+
+    while True:
+        success,frame=camera.read()
+        if not success:
+            break
+        else:
+            ret, buffer=cv2.imencode('.jpg',frame)
+            frame=buffer.tobytes()
+            yield (b'--frame\r\n'b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+
+
+
+
+#app.run is called on start
+if __name__=="__main__":
+    app.run(debug=True, use_reloader=False,threaded=True)
