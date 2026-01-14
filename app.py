@@ -117,6 +117,16 @@ def home():
     )
 
 # -------------------------
+# All Workouts page
+# -------------------------
+@app.route('/allworkouts')
+def allworkouts():
+    if 'username' not in session:
+        return redirect(url_for('login'))
+    return render_template('all_workouts.html')
+
+
+# -------------------------
 # Logout
 # -------------------------
 @app.route('/logout')
