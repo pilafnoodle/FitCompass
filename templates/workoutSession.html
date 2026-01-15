@@ -9,11 +9,22 @@
         <h1>
             Fit Compass
         </h1>
-
+        <p id="squat_count">squats: {{ squat_count }}</p>
     <div>
         <img src="{{ url_for('webcam_feed') }}" width="100%">
-
     </div>
+    <script>
+        function updateStats() {
+            fetch('/get_squat_data')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('squat_count').innerText = data.count;
+                })
+        }
+
+        // Call updateStats every 200ms (5 times per second)
+        setInterval(updateStats, 500);
+    </script>
 </body>
 
 <!DOCTYPE html>
