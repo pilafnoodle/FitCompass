@@ -1,20 +1,31 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>FitCompass - Login</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Home</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
 
-  <style>
-    body{
-      margin:0;
-      font-family:ui-monospace, Menlo, Consolas, monospace;
-      background:#0f2330;
-      color:white;
-      height:100vh;
-      display:flex;
-      justify-content:center;
-      align-items:center;
-    }
+<body>
+    <div style="text-align: center">
+<img src="{{ url_for('static', filename='logo.png') }}" style="display: block; margin: 100px auto 0" alt="Logo">
+
+        <h1>
+            Log in
+        </h1>    
+        <div class="form-container" >
+            <form action="{{ url_for('login') }}" method="POST">
+                <input name="username" type="text" placeholder="Username">
+                <input name="password" type="password" placeholder="Password">
+                <button type="submit">go!</button>
+                <a href="/register">
+                     <button type="button">register!</button>
+                </a>
+               
+
+            </form>
+        </div>
 
     .card{
       background:#d8eff4;
