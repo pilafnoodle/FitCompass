@@ -9,20 +9,35 @@
         <h1>
             Fit Compass
         </h1>
-        <p id="squat_count">squats: {{ squat_count }}</p>
+        <h2 id="exercise_label">Current Exercise: squats</h2>
+        <h1 id="rep_count">count = 0:</h1>
     <div>
         <img src="{{ url_for('webcam_feed') }}" width="100%">
     </div>
+    
+    <button onclick="changeWorkout('squats')">count squats</button>
+    <button onclick="changeWorkout('situps')">count situps</button>
+
     <script>
+
+        function changeWorkout(name) {
+            fetch('/switch_exercise', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ exercise: name })
+            }).then(response => response.json())
+            .then(data => {
+                console.log("Switched to: " + name);
+                document.getElementById('exercise_label').innerText = "Current Exercise: " + name;
+            });
+        }
         function updateStats() {
-            fetch('/get_squat_data')
+            fetch('/get_exercise_data')
                 .then(response => response.json())
                 .then(data => {
-                    document.getElementById('squat_count').innerText = data.count;
+                    document.getElementById('rep_count').innerText = data.count;
                 })
         }
-
-        // Call updateStats every 200ms (5 times per second)
         setInterval(updateStats, 500);
     </script>
 </body>
