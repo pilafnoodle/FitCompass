@@ -413,10 +413,6 @@ def settings():
 def more():
     return "More page coming soon"
 
-
-
-
-
-#app.run is called on start
-if __name__=="__main__":
-    app.run(debug=True, use_reloader=False,threaded=True)
+# -------------------------
+if __name__ == "__main__":
+    app.run(debug=True)
