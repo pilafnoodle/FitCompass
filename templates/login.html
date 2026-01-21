@@ -1,61 +1,100 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>FitCompass - Login</title>
 
   <style>
+    :root{
+      --bg-main:#0f2330;
+      --card:#d8eff4;
+      --btn-green:#a9d99b;
+      --btn-red:#d83a4a;
+      --text-dark:#0f1a1f;
+      --shadow:0 10px 30px rgba(0,0,0,.18);
+      --radius:14px;
+      --font:ui-monospace, Menlo, Consolas, monospace;
+    }
+
+    *{ box-sizing:border-box; }
     body{
       margin:0;
-      font-family:ui-monospace, Menlo, Consolas, monospace;
-      background:#0f2330;
+      font-family:var(--font);
+      background:var(--bg-main);
       color:white;
-      height:100vh;
       display:flex;
       justify-content:center;
       align-items:center;
+      min-height:100vh;
     }
 
     .card{
-      background:#d8eff4;
-      color:#000;
+      background:var(--card);
+      color:var(--text-dark);
       padding:40px;
-      border-radius:14px;
-      width:360px;
+      border-radius:var(--radius);
+      width:400px;
       text-align:center;
-      box-shadow:0 10px 30px rgba(0,0,0,.3);
+      box-shadow:var(--shadow);
+    }
+
+    h2{
+      margin-bottom:24px;
     }
 
     input{
       width:100%;
       padding:12px;
       margin:10px 0;
-      border-radius:8px;
+      border-radius:10px;
       border:1px solid #ccc;
+      font-family:inherit;
+      font-size:16px;
     }
 
     button{
       width:100%;
-      padding:12px;
-      margin-top:12px;
+      padding:14px;
+      margin-top:16px;
       border:none;
       border-radius:10px;
-      background:#a9d99b;
-      font-size:16px;
+      background:var(--btn-green);
+      font-size:18px;
       cursor:pointer;
     }
 
+    button:hover{
+      filter: brightness(0.95);
+    }
+
     .link{
-      margin-top:14px;
       display:block;
+      margin-top:14px;
+      text-align:center;
+      color:var(--text-dark);
+      text-decoration:none;
+      font-weight:bold;
+    }
+
+    .error{
+      color:#c0392b;
+      margin-bottom:10px;
     }
   </style>
 </head>
 
 <body>
-  <div class="card">
-    <img src="logo.png" alt="FitCompass logo" style="max-width:35%; max-height:35%;" />
-    <p>Log in</p>
+    <div class="card">
+    <img src="{{ url_for('static', filename='logo.png') }}" alt="FitCompass logo" style="max-width:120px; margin-bottom:20px;" />
+
+    <h2>Log in</h2>
+
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <p class="error">{{ messages[0] }}</p>
+      {% endif %}
+    {% endwith %}
 
     <form method="POST">
       <input name="username" placeholder="Username" required>
