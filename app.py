@@ -127,7 +127,7 @@ class SitUpController:
                 self.state = SitUpState.IDLE #lying flat, stay in idle
                 return
             
-            elif self.bodyBendAngle<165 and self.kneeAngle<110: #knees must be bent and body must be bent enough to count as up 
+            elif self.bodyBendAngle<165 and self.kneeAngle<110: #kneesmust be bent and body must be bent enough to count as up 
                 #transition to up state
                 self.state=SitUpState.RISING
                 return
