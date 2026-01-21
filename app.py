@@ -39,7 +39,7 @@ connection = get_db_connection()
 cursor = connection.cursor()
 
 # Drop old table if it exists (WARNING: deletes old user data!) Only do when adding columns to the table and want total reset
-cursor.execute("DROP TABLE IF EXISTS UserLogins")
+# cursor.execute("DROP TABLE IF EXISTS UserLogins")
 
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS UserLogins(
@@ -433,6 +433,11 @@ def shop():
 @app.route('/settings')
 def settings():
     return "Settings page coming soon"
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect(url_for('login'))
 
 
 if __name__ == "__main__":

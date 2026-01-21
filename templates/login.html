@@ -1,33 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<<<<<<< HEAD
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Home</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 
-<body>
-    <div style="text-align: center">
-<img src="{{ url_for('static', filename='logo.png') }}" style="display: block; margin: 100px auto 0" alt="Logo">
-
-        <h1>
-            Log in
-        </h1>    
-        <div class="form-container" >
-            <form action="{{ url_for('login') }}" method="POST">
-                <input name="username" type="text" placeholder="Username">
-                <input name="password" type="password" placeholder="Password">
-                <button type="submit">go!</button>
-                <a href="/register">
-                     <button type="button">register!</button>
-                </a>
-               
-
-            </form>
-        </div>
-=======
+ 
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>FitCompass - Login</title>
@@ -55,7 +35,6 @@
       align-items:center;
       min-height:100vh;
     }
->>>>>>> 1200b643086d023622ebb265da8c78d6e020e539
 
     .card{
       background:var(--card);
