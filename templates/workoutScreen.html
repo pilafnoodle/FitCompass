@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fit Compass - Current Set</title>
+
+  <style>
+    :root{
+      --bg-main: #1f4d69;
+      --bg-sidebar: #d8eff4;
+      --panel-top: #d8eff4;
+
+      --card: rgba(0,0,0,.18);
+      --divider: rgba(255,255,255,.22);
+
+      --text-dark: #0f1a1f;
+      --text-light: rgba(255,255,255,.92);
+
+      --shadow: 0 10px 30px rgba(0,0,0,.18);
+      --font: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    }
+
+    *{ box-sizing: border-box; }
+    body{
+      margin: 0;
+      font-family: var(--font);
+      background: #0f2330;
+      color: white;
+      min-height: 100vh;
+    }
+
+    .app{
+      display: flex;
+      min-height: 100vh;
+      position: relative;
+    }
+
+    /* ---------------- MAIN ---------------- */
+    .main{
+      flex: 1;
+      background: var(--bg-main);
+      padding: 0;
+      overflow: hidden;
+      min-width: 0;
+      position: relative;
+    }
+
+    .top-strip{
+      height: 90px;
+      background: var(--panel-top);
+      color: var(--text-dark);
+      display: flex;
+      align-items: center;
+      padding: 0 22px;
+      border-bottom: 3px solid rgba(0,0,0,.12);
+      gap: 14px;
+      position: sticky;
+      top: 0;
+      z-index: 5;
+    }
+
+    .sidebar-toggle{
+      border: none;
+      background: white;
+      color: var(--text-dark);
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+      box-shadow: 0 6px 16px rgba(0,0,0,.14);
+      font-size: 22px;
+      flex: 0 0 auto;
+    }
+
+    .top-strip h1{
+      margin: 0;
+      font-size: 30px;
+      font-weight: 500;
+      letter-spacing: .5px;
+      flex: 1;
+    }
+
+    .content{
+      padding: 26px;
+      padding-bottom: 140px; /* room for fixed progress bar */
+      position: relative;
+    }
+
+    /* ---------------- LAYOUT (like screenshot) ---------------- */
+    .stage{
+      display: grid;
+      grid-template-columns: 1.05fr 1.35fr;
+      gap: 26px;
+      align-items: start;
+      margin-top: 6px;
+    }
+
+    .left-figs{
+      display: flex;
+      flex-direction: column;
+      gap: 22px;
+    }
+
+    .figure-box{
+      background: rgba(255,255,255,.18); /* grey placeholder */
+      border: 2px solid rgba(0,0,0,.2);
+      box-shadow: 0 10px 20px rgba(0,0,0,.18);
+      border-radius: 4px;
+      display: grid;
+      place-items: center;
+      color: rgba(255,255,255,.85);
+      font-size: 16px;
+      text-align: center;
+      padding: 12px;
+    }
+
+    /* placeholders approximate the screenshot sizes */
+    .figure-large{ height: 210px; }
+    .figure-medium{ height: 190px; }
+    .video-box{ height: 320px; }
+
+    /* ---------------- Avatar (fixed bottom-right) ---------------- */
+    .avatar{
+      position: fixed;
+      right: 26px;
+      bottom: 26px;
+      width: 80px;
+      height: 150px;
+      border-radius: 10px;
+      background: rgba(255,255,255,.18);
+      border: 2px solid rgba(0,0,0,.2);
+      box-shadow: 0 10px 20px rgba(0,0,0,.18);
+      display: grid;
+      place-items: center;
+      font-size: 14px;
+      color: rgba(255,255,255,.85);
+      z-index: 6;
+    }
+
+    /* ---------------- Progress bar (fixed bottom center) ---------------- */
+    .progress-wrap{
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: min(620px, 92%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 5;
+      pointer-events: none; /* so it doesn't block clicks unless you want it clickable */
+    }
+
+    .progress{
+      width: 100%;
+      height: 36px;
+      border-radius: 10px;
+      background: white;
+      overflow: hidden;
+      box-shadow: 0 10px 18px rgba(0,0,0,.16);
+      border: 2px solid rgba(0,0,0,.12);
+      position: relative;
+      pointer-events: auto;
+    }
+
+    .progress-fill{
+      height: 100%;
+      width: 78%; /* placeholder fill */
+      background: #9fe19a;
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      padding-left: 16px;
+      color: #0f1a1f;
+      font-size: 18px;
+      letter-spacing: .5px;
+      white-space: nowrap;
+    }
+
+    /* ---------------- OVERLAY SIDEBAR ---------------- */
+    .overlay{
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.45);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .18s ease;
+      z-index: 20;
+    }
+    .overlay.open{
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .sidebar{
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: 100vh;
+      width: 280px;
+      background: var(--bg-sidebar);
+      color: var(--text-dark);
+      padding: 24px 14px;
+      border-right: 3px solid rgba(0,0,0,.08);
+      box-shadow: 14px 0 40px rgba(0,0,0,.22);
+      transform: translateX(-110%);
+      transition: transform .22s ease;
+      z-index: 25;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .sidebar.open{
+      transform: translateX(0);
+    }
+
+    .nav{
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 0 6px;
+      flex: 1;
+    }
+
+    .nav button{
+      width: 100%;
+      border: none;
+      border-radius: 10px;
+      padding: 12px 14px;
+      background: white;
+      color: var(--text-dark);
+      cursor: pointer;
+      font-family: var(--font);
+      font-size: 16px;
+      text-align: left;
+      box-shadow: 0 4px 10px rgba(0,0,0,.08);
+      transition: transform .06s ease, filter .12s ease;
+    }
+    .nav button:hover{ filter: brightness(.98); }
+    .nav button:active{ transform: translateY(1px); }
+
+    .logout{
+      margin-top: auto;
+      padding: 0 6px 8px;
+    }
+
+    .logout button{
+      width: 100%;
+      border: none;
+      border-radius: 10px;
+      padding: 14px 14px;
+      background: #d83a4a;
+      color: #1a0b0d;
+      cursor: pointer;
+      font-family: var(--font);
+      font-size: 18px;
+      box-shadow: 0 8px 18px rgba(0,0,0,.18);
+    }
+
+    /* Responsive */
+    @media(max-width: 980px){
+      .stage{ grid-template-columns: 1fr; }
+      .video-box{ height: 280px; }
+    }
+
+    @media(max-width: 680px){
+      .top-strip{ height: auto; padding: 18px 18px; }
+      .top-strip h1{ font-size: 24px; }
+      .content{ padding: 18px; padding-bottom: 170px; }
+      .sidebar{ width: 85vw; max-width: 320px; }
+
+      .avatar{
+        width: 60px;
+        height: 120px;
+        right: 18px;
+        bottom: 18px;
+      }
+
+      /* keep bar a bit higher so it doesn't feel cramped */
+      .progress-wrap{
+        bottom: 90px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app">
+
+    <!-- Overlay -->
+    <div class="overlay" id="overlay" onclick="closeSidebar()" aria-hidden="true"></div>
+
+    <!-- Sidebar (same as your other pages) -->
+    <aside class="sidebar" id="sidebar" aria-label="Sidebar navigation">
+      <nav class="nav">
+        <button type="button" onclick="navigateTo('{{ url_for('home') }}')">home</button>
+        <button type="button" onclick="navigateTo('{{ url_for('settings') }}')">settings</button>
+        <button type="button" onclick="navigateTo('{{ url_for('profile') }}')">profile</button>
+        <button type="button" onclick="navigateTo('{{ url_for('history') }}')">history</button>
+        <button type="button" onclick="navigateTo('{{ url_for('shop') }}')">shop</button>
+        <button type="button" onclick="navigateTo('{{ url_for('allworkouts') }}')">library</button>
+        <button type="button" onclick="navigateTo('{{ url_for('more') }}')">more</button>
+      </nav>
+
+      <div class="logout">
+        <button type="button" onclick="navigateTo('{{ url_for('logout') }}')">logout</button>
+      </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="main">
+      <header class="top-strip">
+        <button class="sidebar-toggle" type="button" onclick="openSidebar()" aria-label="Open sidebar">☰</button>
+        <h1>Current Set: Push-ups</h1>
+      </header>
+
+      <div class="content">
+        <div class="stage">
+          <!-- Left: 2 anatomy figures (placeholders) -->
+          <div class="left-figs" aria-label="Exercise figure placeholders">
+            <div class="figure-box figure-large">[figure placeholder]</div>
+            <div class="figure-box figure-medium">[figure placeholder]</div>
+          </div>
+
+          <!-- Right: video placeholder -->
+          <div class="figure-box video-box" aria-label="Workout video placeholder">
+            <!-- Future video goes here:
+                 <video controls src="..."></video>
+                 or <iframe ...></iframe>
+            -->
+            [video placeholder]
+          </div>
+        </div>
+
+        <!-- Fixed bottom-right avatar -->
+        <div class="avatar" aria-label="Coach avatar placeholder">[avatar]</div>
+
+        <!-- Fixed bottom-center progress bar -->
+        <div class="progress-wrap" aria-label="Set progress">
+          <div class="progress">
+            <div class="progress-fill">progress bar</div>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <script>
+    function openSidebar() {
+      document.getElementById("sidebar").classList.add("open");
+      document.getElementById("overlay").classList.add("open");
+    }
+
+    function closeSidebar() {
+      document.getElementById("sidebar").classList.remove("open");
+      document.getElementById("overlay").classList.remove("open");
+    }
+
+    function navigateTo(path) {
+      closeSidebar();
+      window.location.href = path;
+    }
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") closeSidebar();
+    });
+  </script>
+</body>
+</html>
