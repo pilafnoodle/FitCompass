@@ -2,13 +2,30 @@ from flask import Flask, render_template, request, redirect, url_for, session, f
 from werkzeug.security import generate_password_hash, check_password_hash
 import sqlite3
 import os
+import cv2
+import numpy as np
+import mediapipe as mp
+from mediapipe.tasks import python
+from mediapipe.tasks.python import vision
+import math
+from flask import jsonify
+import time
+
+from landmarks import *
+
+BaseOptions = python.BaseOptions
+PoseLandmarker = vision.PoseLandmarker
+PoseLandmarkerOptions = vision.PoseLandmarkerOptions
+VisionRunningMode = vision.RunningMode
+base_options = python.BaseOptions(model_asset_path='pose_landmarker.task')
+options = vision.PoseLandmarkerOptions(
+        base_options=base_options,
+        output_segmentation_masks=True)
+detector = vision.PoseLandmarker.create_from_options(options)
 
 app = Flask(__name__)
 app.secret_key = "fitcompass_secret_key"
 
-# -------------------------
-# Database setup
-# -------------------------
 currentDirectory = os.path.dirname(os.path.abspath(__file__))
 db_path = os.path.join(currentDirectory, "UserLogins.db")
 
@@ -39,6 +56,271 @@ CREATE TABLE IF NOT EXISTS UserLogins(
 
 connection.commit()
 connection.close()
+
+# Webcam setup
+camera = cv2.VideoCapture(0)
+
+@app.route('/webcam_feed')
+def webcam_feed():
+    return Response(generate_frames(),
+                    mimetype='multipart/x-mixed-replace; boundary=frame')
+
+#format is anglebetweenlines(endpoint one, vertex, endpoint two)
+def angleBetweenLines(a,b,c):
+    a = np.array(a) # end
+    b = np.array(b) # vertext 
+    c = np.array(c) # End 
+    radians = math.atan2(c[1] - b[1], c[0] - b[0]) - math.atan2(a[1] - b[1], a[0] - b[0])
+    angle = np.abs(radians * 180.0 / np.pi)
+    
+    if angle > 180.0:
+        angle = 360 - angle
+        
+    return angle
+
+def landmarks_to_pixels(pose_landmarks, image_shape):
+    h, w, _ = image_shape
+
+    pixel_landmarks = []
+
+    for lm in pose_landmarks:
+        x = int(lm.x * w)
+        y = int(lm.y * h)
+        pixel_landmarks.append((x, y))
+
+    return pixel_landmarks
+
+
+class SitUpState:
+    IDLE="IDLE"
+    DOWN = "DOWN"
+    RISING="RISING"
+    TOP="TOP"
+
+class SitUpController:
+    def __init__(self):
+        self.state=SitUpState.IDLE
+        self.count=0
+        self.bodyBendAngle=0 #the idle state means the angle between the rays from hip to head and hip to ankle has to be about flat
+        self.kneeAngle=0 #knees should be bent in a situp
+        self.heel_anchor=None #heel shouldnt move very much
+        #dont care about the arms for now
+
+    def update(self,detection_result, image_shape):
+        if not detection_result or not detection_result.pose_landmarks:
+            return
+        landmarks = detection_result.pose_landmarks[0] #only get the first person
+        pixel_landmarks = landmarks_to_pixels(landmarks, image_shape)  
+        right_hip=pixel_landmarks[RIGHT_HIP]
+        right_shoulder=pixel_landmarks[RIGHT_SHOULDER] #no head landmark
+        right_knee=pixel_landmarks[RIGHT_KNEE]
+
+        right_heel=pixel_landmarks[RIGHT_HEEL]
+
+        self.bodyBendAngle=angleBetweenLines(right_shoulder, right_hip,right_heel)
+        self.kneeAngle=angleBetweenLines(right_hip,right_knee,right_heel)
+
+        if self.state==SitUpState.IDLE:
+            self.heel_anchor = np.array(right_heel)
+            #wait until body bend angle is less than some number
+            if self.bodyBendAngle>165:
+                self.state = SitUpState.IDLE #lying flat, stay in idle
+                return
+            
+            elif self.bodyBendAngle<165 and self.kneeAngle<110: #knees must be bent and body must be bent enough to count as up 
+                #transition to up state
+                self.state=SitUpState.RISING
+                return
+        
+        elif self.state==SitUpState.RISING:
+            current_heel = np.array(right_heel)
+            heel_displacement = np.linalg.norm(current_heel - self.heel_anchor)
+
+            if self.heel_anchor is None:
+                self.state = SitUpState.IDLE
+
+            if self.kneeAngle>110 or heel_displacement > 80: #knees not bent enough! go back to idle
+                self.state=SitUpState.IDLE
+                return
+
+            elif self.bodyBendAngle<110: #more and more bent
+                self.state=SitUpState.TOP
+                return
+        elif self.state==SitUpState.TOP:
+            if self.kneeAngle>110: #knees not bent enough! go back to idle
+                self.state=SitUpState.IDLE
+                return
+            
+            elif self.bodyBendAngle>165:
+                self.count=self.count+1
+                self.state=SitUpState.IDLE
+                return
+        
+
+    def draw(self,image, detection_result):
+        annotated_image = image.copy()
+        if not detection_result.pose_landmarks:
+            return annotated_image
+        h, w, _ = image.shape
+
+        for pose_landmarks in detection_result.pose_landmarks:
+            def to_pixel(lm):
+                return int(lm.x * w), int(lm.y * h)
+            head= to_pixel(pose_landmarks[NOSE])
+            right_hip = to_pixel(pose_landmarks[RIGHT_HIP])
+            right_knee = to_pixel(pose_landmarks[RIGHT_KNEE])
+            right_ankle = to_pixel(pose_landmarks[RIGHT_HEEL])
+            
+            #head to hip, hip to ankle ignoring knee
+            cv2.line(annotated_image, right_hip, head, (0, 0, 255), 2)
+            cv2.line(annotated_image, right_hip, right_ankle, (0, 0, 255), 2)
+
+            #knee angle
+            cv2.line(annotated_image, right_hip, right_knee, (0, 255, 0), 2)
+            cv2.line(annotated_image, right_knee, right_ankle, (0, 255, 0), 2)
+        return annotated_image
+
+class SquatState:
+    IDLE="IDLE"
+    BEGIN = "BEGIN"
+    DOWN = "DOWN"
+    RISE="RISE"
+
+class SquatController:
+    def __init__(self):
+        self.state = SquatState.IDLE
+        self.count = 0
+        self.knee_angle = 0
+        self.heel_anchor = None
+        self.down_start_time = None
+
+    def update(self, detection_result, image_shape):
+        if not detection_result or not detection_result.pose_landmarks:
+            return
+        landmarks = detection_result.pose_landmarks[0] #only get the first person
+        pixel_landmarks = landmarks_to_pixels(landmarks, image_shape)  
+        left_hip = pixel_landmarks[LEFT_HIP] #both share a point at knee
+        left_knee = pixel_landmarks[LEFT_KNEE]
+        left_heel = pixel_landmarks[LEFT_HEEL]
+
+        self.left_knee_angle=angleBetweenLines(left_hip,left_knee,left_heel)
+
+        right_hip = pixel_landmarks[RIGHT_HIP] #both share a point at knee
+        right_knee = pixel_landmarks[RIGHT_KNEE]
+        right_heel = pixel_landmarks[RIGHT_HEEL]
+
+        self.right_knee_angle=angleBetweenLines(right_hip,right_knee,right_heel)
+              
+        if self.state == SquatState.IDLE:
+            if self.left_knee_angle>140 and self.right_knee_angle >140:
+                self.heel_anchor = np.array(left_heel)
+
+            if self.left_knee_angle<120 and self.right_knee_angle <120:
+                self.state=SquatState.BEGIN
+                return
+            
+        elif self.state==SquatState.BEGIN:
+            if self.heel_anchor is None:
+
+                self.state = SquatState.IDLE
+                return
+            current_heel = np.array(left_heel)
+            heel_displacement = np.linalg.norm(current_heel - self.heel_anchor)
+            if heel_displacement > 80:
+                self.state=SquatState.IDLE
+                return
+
+            if self.left_knee_angle<80 and self.right_knee_angle <80 : #80 degree squat
+                self.state = SquatState.DOWN
+                self.down_start_time = time.time()
+                return
+
+        elif self.state == SquatState.DOWN:
+            if self.left_knee_angle > 100 or self.right_knee_angle> 100: # User started rising too early
+                if (time.time() - self.down_start_time) >= 1.0:
+                    self.state =  SquatState.RISE
+                else:
+                    self.state = SquatState.RISE
+
+        elif self.state ==  SquatState.RISE:
+            if self.left_knee_angle <160  and self.right_knee_angle<160 :
+                self.count += 1
+                self.state = SquatState.IDLE
+                print(f"Count: {self.count}")
+    
+    def draw(self,image, detection_result):
+        annotated_image = image.copy()
+        if not detection_result.pose_landmarks:
+            return annotated_image
+        h, w, _ = image.shape
+
+        for pose_landmarks in detection_result.pose_landmarks:
+            def to_pixel(lm):
+                return int(lm.x * w), int(lm.y * h)
+            left_hip = to_pixel(pose_landmarks[LEFT_HIP])
+            left_knee = to_pixel(pose_landmarks[LEFT_KNEE])
+            left_ankle = to_pixel(pose_landmarks[LEFT_HEEL])
+            right_hip = to_pixel(pose_landmarks[RIGHT_HIP])
+            right_knee = to_pixel(pose_landmarks[RIGHT_KNEE])
+            right_ankle = to_pixel(pose_landmarks[RIGHT_HEEL])
+            cv2.line(annotated_image, left_hip, left_knee, (0, 255, 0), 2)
+            cv2.line(annotated_image, left_knee, left_ankle, (0, 255, 0), 2)
+            cv2.line(annotated_image, right_hip, right_knee, (0, 255, 0), 2)
+            cv2.line(annotated_image, right_knee, right_ankle, (0, 255, 0), 2)
+        return annotated_image
+
+sitUpController = SitUpController()
+squatController = SquatController()
+
+class exerciseManager():
+    def __init__(self):
+        self.exercises={"squats": SquatController(), "situps" : SitUpController()}
+    
+        self.currentExercise="squats"
+    def getCurrentExercise(self):
+        return self.exercises[self.currentExercise]
+    def setCurrentExercise(self,exerciseName):
+        self.currentExercise=exerciseName
+
+exerciseManager=exerciseManager()
+
+
+
+@app.route('/switch_exercise',methods=["POST"])
+def switch_exercise():
+    data = request.get_json()
+    new_exercise = data.get('exercise')
+    exerciseManager.setCurrentExercise(new_exercise)
+    return jsonify(status="success", now_doing=new_exercise)
+
+@app.route('/get_exercise_data')
+def get_exercise_data():
+    # Return the count and the state from your squatController
+    currentExercise=exerciseManager.getCurrentExercise()
+    return jsonify(
+        currentExercise=exerciseManager.currentExercise,
+        count=currentExercise.count,
+        state=currentExercise.state,
+    )
+
+
+def generate_frames():
+    while True:
+        success, frame = camera.read()
+        if not success:
+            break
+        mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=frame)
+        detection_result = detector.detect(mp_image)
+
+        currentExercise = exerciseManager.getCurrentExercise()
+        currentExercise.update(detection_result, frame.shape)
+
+
+        annotated_image = currentExercise.draw(frame, detection_result)
+        ret, buffer = cv2.imencode('.jpg', annotated_image)
+        frame_bytes = buffer.tobytes()
+        yield (b'--frame\r\n'
+            b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
 
 # -------------------------
 # Login
@@ -121,13 +403,13 @@ def home():
         goal_percent=62
     )
 
-# -------------------------
-# Logout
-# -------------------------
-@app.route('/logout')
-def logout():
-    session.clear()
-    return redirect(url_for('login'))
+
+@app.route('/workoutSession')
+def workoutSession():
+    squat_count=0
+    knee_angle=0
+
+    return render_template("workoutSession.html",squat_count=squat_count,knee_angle=knee_angle)
 
 # -------------------------
 # Placeholder
