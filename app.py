@@ -10,6 +10,8 @@ from mediapipe.tasks.python import vision
 import math
 from flask import jsonify
 import time
+from flask import Response
+
 
 from landmarks import *
 
@@ -89,7 +91,6 @@ def landmarks_to_pixels(pose_landmarks, image_shape):
         pixel_landmarks.append((x, y))
 
     return pixel_landmarks
-
 
 class SitUpState:
     IDLE="IDLE"
