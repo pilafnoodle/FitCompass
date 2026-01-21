@@ -1,10 +1,9 @@
-from flask import Flask, render_template, request, redirect, url_for, session, Response
+from flask import Flask, render_template, request, redirect, url_for, session, flash
+from werkzeug.security import generate_password_hash, check_password_hash
 import sqlite3
 import os
-import cv2
 
 app = Flask(__name__)
-#there needs to be a secreet key to ensure sessions are secure and tamper proof
 app.secret_key = "fitcompass_secret_key"
 
 # -------------------------
@@ -14,38 +13,32 @@ currentDirectory = os.path.dirname(os.path.abspath(__file__))
 db_path = os.path.join(currentDirectory, "UserLogins.db")
 
 def get_db_connection():
-    return sqlite3.connect(db_path)
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    return conn
 
+# Create tables
 connection = get_db_connection()
 cursor = connection.cursor()
+
+# Drop old table if it exists (WARNING: deletes old user data!) Only do when adding columns to the table and want total reset
+cursor.execute("DROP TABLE IF EXISTS UserLogins")
+
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS UserLogins(
-    username TEXT PRIMARY KEY,
-    password TEXT
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT UNIQUE NOT NULL,
+    email TEXT UNIQUE NOT NULL,
+    password TEXT NOT NULL,
+    goal TEXT,
+    goal_other TEXT,
+    workouts_per_week INTEGER,
+    body_part TEXT
 )
 """)
+
 connection.commit()
 connection.close()
-
-# -------------------------
-# Webcam setup
-# -------------------------
-camera = cv2.VideoCapture(0)
-
-def generate_frames():
-    while True:
-        success, frame = camera.read()
-        if not success:
-            break
-        ret, buffer = cv2.imencode('.jpg', frame)
-        frame = buffer.tobytes()
-        yield (b'--frame\r\n'
-               b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
-
-@app.route('/webcam_feed')
-def webcam_feed():
-    return Response(generate_frames(),
-                    mimetype='multipart/x-mixed-replace; boundary=frame')
 
 # -------------------------
 # Login
@@ -54,77 +47,79 @@ def webcam_feed():
 def login():
     if request.method == 'POST':
         username = request.form['username']
-        password = request.form['password']
+        raw_password = request.form['password']
 
-        connection = get_db_connection()
-        cursor = connection.cursor()
-        cursor.execute(
-            "SELECT * FROM UserLogins WHERE username=? AND password=?",
-            (username, password)
-        )
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, password FROM UserLogins WHERE username=?", (username,))
         user = cursor.fetchone()
-        connection.close()
+        conn.close()
 
-        if user:
+        if user and check_password_hash(user["password"], raw_password):
+            session['user_id'] = user["id"]
             session['username'] = username
             return redirect(url_for('home'))
-        else:
-            return render_template('login.html', error="Invalid username or password")
+
+        flash("Invalid username or password")
+        return redirect(url_for('login'))
 
     return render_template('login.html')
 
 # -------------------------
-# Register
+# Register + Intake Quiz
 # -------------------------
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
         username = request.form['username']
-        password = request.form['password']
+        email = request.form['email']
+        password = generate_password_hash(request.form['password'])
 
-        connection = get_db_connection()
-        cursor = connection.cursor()
-        cursor.execute(
-            "INSERT INTO UserLogins(username, password) VALUES (?, ?)",
-            (username, password)
-        )
-        connection.commit()
-        connection.close()
+        goal = request.form.get('goal')
+        goal_other = request.form.get('goal_other') if goal == 'other' else None
+        workouts_per_week = request.form.get('workouts_per_week')
+        body_part = request.form.get('body_part')
 
-        return redirect(url_for('login'))
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+
+            # Insert user
+            cursor.execute(
+                """
+                INSERT INTO UserLogins (username, email, password, goal, goal_other, workouts_per_week, body_part)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (username, email, password, goal, goal_other, workouts_per_week, body_part)
+            )
+            user_id = cursor.lastrowid
+
+            conn.commit()
+            conn.close()
+
+            return redirect(url_for('login'))
+
+        except sqlite3.IntegrityError:
+            conn.close()
+            flash("Username or email already exists")
+            return redirect(url_for('register'))
 
     return render_template('register.html')
 
 # -------------------------
-# Home (personalized)
+# Home
 # -------------------------
 @app.route('/home')
 def home():
     if 'username' not in session:
         return redirect(url_for('login'))
 
-    username = session['username']
-
-    # Placeholder personalized data (replace later with DB queries)
-    points = 120
-    goal_percent = 62
-
     return render_template(
         'home.html',
-        username=username,
-        points=points,
-        goal_percent=goal_percent
+        username=session['username'],
+        points=120,
+        goal_percent=62
     )
-
-# -------------------------
-# All Workouts page
-# -------------------------
-@app.route('/allworkouts')
-def allworkouts():
-    if 'username' not in session:
-        return redirect(url_for('login'))
-    return render_template('all_workouts.html')
-
 
 # -------------------------
 # Logout
@@ -135,7 +130,7 @@ def logout():
     return redirect(url_for('login'))
 
 # -------------------------
-# Placeholder routes
+# Placeholder
 # -------------------------
 @app.route('/profile')
 def profile():
@@ -145,22 +140,19 @@ def profile():
 def history():
     return "History page coming soon"
 
-@app.route('/shop')
-def shop():
-    return "Shop page coming soon"
-
 @app.route('/library')
 def library():
     return "Library page coming soon"
+
+@app.route('/shop')
+def shop():
+    return "Shop page coming soon"
 
 @app.route('/settings')
 def settings():
     return "Settings page coming soon"
 
-@app.route('/more')
-def more():
-    return "More page coming soon"
 
-# -------------------------
 if __name__ == "__main__":
     app.run(debug=True)
+
