@@ -11,12 +11,15 @@
         </h1>
         <h2 id="exercise_label">Current Exercise: squats</h2>
         <h1 id="rep_count">count = 0:</h1>
+        <h1 id="current_state">state</h1>
+
     <div>
         <img src="{{ url_for('webcam_feed') }}" width="640" height="480">
     </div>
     
     <button onclick="changeWorkout('squats')">count squats</button>
     <button onclick="changeWorkout('situps')">count situps</button>
+    <button onclick="changeWorkout('lunges')">count lunges</button>
 
     <script>
 
@@ -36,8 +39,11 @@
                 .then(response => response.json())
                 .then(data => {
                     document.getElementById('rep_count').innerText = data.count;
+                    document.getElementById('current_state').innerText = data.state;
+
                 })
         }
+
         setInterval(updateStats, 500);
     </script>
 </body>
