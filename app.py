@@ -61,6 +61,8 @@ connection.close()
 
 # Webcam setup
 camera = cv2.VideoCapture(0)
+#global variable for the latest detected frame
+latest_detection = None
 
 @app.route('/webcam_feed')
 def webcam_feed():
@@ -216,6 +218,18 @@ class SquatController:
             if self.left_knee_angle>140 and self.right_knee_angle >140:
                 self.heel_anchor = np.array(left_heel)
 
+        
+            left_hip = np.array(left_hip)
+            left_heel = np.array(left_heel)
+
+            dx = left_heel[0] - left_hip[0]
+            dy = left_heel[1] - left_hip[1]
+            slope = dy / dx
+
+            #patching the angel franco office chair cheat
+            if(not (-2> slope or  slope>2)): #line from hip to ankle must be mostly vertical
+                return
+
             if self.left_knee_angle<120 and self.right_knee_angle <120:
                 self.state=SquatState.BEGIN
                 return
@@ -264,18 +278,159 @@ class SquatController:
             right_hip = to_pixel(pose_landmarks[RIGHT_HIP])
             right_knee = to_pixel(pose_landmarks[RIGHT_KNEE])
             right_ankle = to_pixel(pose_landmarks[RIGHT_HEEL])
+            
+            cv2.line(annotated_image, left_hip, left_ankle, (255, 0, 0), 2)
+
             cv2.line(annotated_image, left_hip, left_knee, (0, 255, 0), 2)
             cv2.line(annotated_image, left_knee, left_ankle, (0, 255, 0), 2)
             cv2.line(annotated_image, right_hip, right_knee, (0, 255, 0), 2)
             cv2.line(annotated_image, right_knee, right_ankle, (0, 255, 0), 2)
         return annotated_image
 
+class LungeState:
+    IDLE="IDLE"
+    DESCENDING="DESCENDING" #left leg forward
+    ASCENDING="ASCENDING"
+    DOWN="DOWN"
+class LungeController:
+    def __init__(self):
+        self.state=LungeState.IDLE
+        self.count=0
+        self.leftKneeAngle=0
+        self.rightKneeAngle=0
+        self.heelToHeelDistance=0
+        self.calfLength=0 #this is a constant
+        self.idleHipHeight=0
+    
+    def update(self,detection_result, image_shape):
+        if not detection_result or not detection_result.pose_landmarks:
+            return
+        landmarks = detection_result.pose_landmarks[0] 
+        pixel_landmarks = landmarks_to_pixels(landmarks, image_shape)  
+        left_hip = pixel_landmarks[LEFT_HIP] #both share a point at knee
+        left_knee = pixel_landmarks[LEFT_KNEE]
+        left_heel = pixel_landmarks[LEFT_HEEL]
+
+        self.left_knee_angle=angleBetweenLines(left_hip,left_knee,left_heel)
+
+        right_hip = pixel_landmarks[RIGHT_HIP] #both share a point at knee
+        right_knee = pixel_landmarks[RIGHT_KNEE]
+        right_heel = pixel_landmarks[RIGHT_HEEL]
+
+        right_knee = np.array(right_knee)
+        right_heel = np.array(right_heel)
+        self.calfLength=np.linalg.norm(right_knee-right_heel) #this is a constant!!!!
+
+        self.right_knee_angle=angleBetweenLines(right_hip,right_knee,right_heel)
+
+
+        if self.state==LungeState.IDLE:
+
+            left_heel = np.array(left_heel)
+            right_heel = np.array(right_heel)
+                
+            self.heelToHeelDistance=np.linalg.norm(left_heel-right_heel) #this is a constant!!!!
+            
+            self.idleHipHeight = right_hip[1]
+
+            if(abs(self.heelToHeelDistance)> 1.3 * self.calfLength):
+
+                self.state=LungeState.DESCENDING
+                return
+            
+        elif self.state==LungeState.DESCENDING:
+            pass
+
+            left_heel = np.array(left_heel)
+            right_heel = np.array(right_heel)
+                
+            self.heelToHeelDistance=np.linalg.norm(left_heel-right_heel) 
+
+            if(abs(self.heelToHeelDistance)< 1.3 * self.calfLength):
+                self.state=LungeState.IDLE
+                return
+            rightCalfSlope = (right_knee[1]-right_heel[1])  / (right_knee[0]-right_heel[0])
+            leftCalfSlope = (left_knee[1]-right_heel[1])  / (left_knee[0]-left_heel[0])
+    
+            self.right_knee_angle=angleBetweenLines(right_hip,right_knee,right_heel)
+            self.left_knee_angle=angleBetweenLines(left_hip,left_knee,left_heel)
+            backLeg="dumb"
+            frontLeg="dummy"
+            if(abs(rightCalfSlope) <0.75 ): #if the slope of the right calf is near flat
+                frontLeg="left"
+                backLeg="right"
+            elif(abs(leftCalfSlope)<0.75):
+                frontLeg="right"
+                backLeg="left"
+
+            if( frontLeg=="right"  and self.left_knee_angle < 110):
+                self.state=LungeState.DOWN
+                return
+            elif(frontLeg=="left" and self.right_knee_angle< 110):
+                self.state=LungeState.DOWN
+                return
+ 
+        if self.state==LungeState.DOWN:
+
+            left_heel = np.array(left_heel)
+            right_heel = np.array(right_heel)
+                
+            self.heelToHeelDistance=np.linalg.norm(left_heel-right_heel) #this is a constant!!!!
+            if(abs(self.heelToHeelDistance) < self.calfLength *1.3):
+                self.state=LungeState.ASCENDING
+                self.count=self.count+1
+                return
+        
+        if self.state==LungeState.ASCENDING:
+            self.right_knee_angle=angleBetweenLines(right_hip,right_knee,right_heel)
+            self.left_knee_angle=angleBetweenLines(left_hip,left_knee,left_heel)
+            if(self.right_knee_angle > 140 and self.left_knee_angle >140):
+                self.state=LungeState.IDLE
+                return
+ 
+    def draw(self,image, detection_result):
+        annotated_image = image.copy()
+        if not detection_result.pose_landmarks:
+            return annotated_image
+        h, w, _ = image.shape
+
+        for pose_landmarks in detection_result.pose_landmarks:
+            def to_pixel(lm):
+                return int(lm.x * w), int(lm.y * h)
+            left_hip = to_pixel(pose_landmarks[LEFT_HIP])
+            left_knee = to_pixel(pose_landmarks[LEFT_KNEE])
+            left_ankle = to_pixel(pose_landmarks[LEFT_HEEL])
+            right_hip = to_pixel(pose_landmarks[RIGHT_HIP])
+            right_knee = to_pixel(pose_landmarks[RIGHT_KNEE])
+            right_ankle = to_pixel(pose_landmarks[RIGHT_HEEL])
+
+            left_ankle = np.array(left_ankle)
+            right_ankle = np.array(right_ankle)
+            
+            ankleToAnkleDistance=np.linalg.norm(left_ankle-right_ankle) #this is a constant!!!!
+
+            right_knee = np.array(right_knee)
+            rightCalfLength=np.linalg.norm(right_knee-right_ankle) #this is a constant!!!!
+            
+            if(abs(ankleToAnkleDistance) > 1.5 * rightCalfLength):
+                cv2.line(annotated_image, left_ankle, right_ankle, (0, 0, 255), 2)
+
+            else:
+                cv2.line(annotated_image, left_ankle, right_ankle, (0, 255, 0), 2)
+            
+            cv2.line(annotated_image, right_knee, right_ankle, (255, 0, 0), 2)
+            cv2.line(annotated_image, left_hip, left_knee, (0, 255, 0), 2)
+            cv2.line(annotated_image, left_knee, left_ankle, (0, 255, 0), 2)
+            cv2.line(annotated_image, right_hip, right_knee, (0, 255, 0), 2)
+        return annotated_image
+
 sitUpController = SitUpController()
 squatController = SquatController()
+lungeController = LungeController()
 
 class exerciseManager():
     def __init__(self):
-        self.exercises={"squats": SquatController(), "situps" : SitUpController()}
+        self.exercises={"squats": SquatController(), "situps" : SitUpController(), "lunges" : LungeController()}
     
         self.currentExercise="squats"
     def getCurrentExercise(self):
@@ -296,26 +451,33 @@ def switch_exercise():
 
 @app.route('/get_exercise_data')
 def get_exercise_data():
-    # Return the count and the state from your squatController
+    global latest_detection
+    multiple_detected=False
+
+    if latest_detection and latest_detection.pose_landmarks:
+        if len(latest_detection.pose_landmarks) > 1:
+            multiple_detected = True
+
     currentExercise=exerciseManager.getCurrentExercise()
     return jsonify(
         currentExercise=exerciseManager.currentExercise,
         count=currentExercise.count,
         state=currentExercise.state,
+        multiple_detected=multiple_detected
     )
 
 
 def generate_frames():
+    global latest_detection
     while True:
         success, frame = camera.read()
         if not success:
             break
         mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=frame)
         detection_result = detector.detect(mp_image)
-
+        latest_detection=detection_result    
         currentExercise = exerciseManager.getCurrentExercise()
         currentExercise.update(detection_result, frame.shape)
-
 
         annotated_image = currentExercise.draw(frame, detection_result)
         ret, buffer = cv2.imencode('.jpg', annotated_image)
@@ -411,6 +573,13 @@ def workoutSession():
     knee_angle=0
 
     return render_template("workoutSession.html",squat_count=squat_count,knee_angle=knee_angle)
+
+@app.route('/workoutcomplete')
+def workoutcomplete():
+
+
+    return render_template("workoutcomplete.html")
+
 
 # -------------------------
 # Placeholder
