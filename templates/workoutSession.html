@@ -13,6 +13,10 @@
         <h1 id="rep_count">count = 0:</h1>
         <h1 id="current_state">state</h1>
 
+        <div id="multi_person_warning" style="display: none; color: white; background-color: #ff4444; padding: 15px; border-radius: 8px; margin: 10px; text-align: center; font-weight: bold;">
+        Multiple people detected! Please have only one person in frame for accurate counting.
+        </div>
+
     <div>
         <img src="{{ url_for('webcam_feed') }}" width="640" height="480">
     </div>
@@ -22,8 +26,14 @@
     <button onclick="changeWorkout('lunges')">count lunges</button>
 
     <script>
-
-        function changeWorkout(name) {
+        const workoutRoutine=[{name: 'squats', target: 2},
+                              {name: 'lunges', target: 2},
+                            ]
+        
+        let routineIndex=0;
+        let workoutFinished=false
+        let isSwitching = false; // ai lock 
+        function changeExercise(name) {
             fetch('/switch_exercise', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
@@ -34,13 +44,52 @@
                 document.getElementById('exercise_label').innerText = "Current Exercise: " + name;
             });
         }
+        function moveToNextExercise(){
+            if (isSwitching) return; // Don't run if already switching
+                isSwitching = true;
+            routineIndex++;
+            
+            if(routineIndex < workoutRoutine.length){
+                const nextExercise = workoutRoutine[routineIndex].name;
+                changeExercise(nextExercise);
+            }else{
+                workoutFinished=true
+                window.location.href = "{{ url_for('workoutcomplete') }}";
+            }
+            setTimeout(() => { isSwitching = false; }, 1000);
+
+        }
+
         function updateStats() {
+            
             fetch('/get_exercise_data')
                 .then(response => response.json())
                 .then(data => {
+
                     document.getElementById('rep_count').innerText = data.count;
                     document.getElementById('current_state').innerText = data.state;
+                    
+                    const goalCount= workoutRoutine[routineIndex].target
 
+                    if(data.count>=goalCount){
+                        moveToNextExercise()
+                    }
+
+
+                })
+        }
+        function canStartExercising(){
+            fetch('/get_exercise_data')
+                .then(response => response.json())
+                .then(data => {
+
+                    const warningBox = document.getElementById('multi_person_warning');
+            
+                    if (data.multiple_detected === true) {
+                        warningBox.style.display = "block";  // Show the red warning
+                    } else {
+                        warningBox.style.display = "none";   // Hide it when clear
+                    }
                 })
         }
 

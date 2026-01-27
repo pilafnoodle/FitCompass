@@ -61,6 +61,8 @@ connection.close()
 
 # Webcam setup
 camera = cv2.VideoCapture(0)
+#global variable for the latest detected frame
+latest_detection = None
 
 @app.route('/webcam_feed')
 def webcam_feed():
@@ -290,8 +292,6 @@ class LungeState:
     DESCENDING="DESCENDING" #left leg forward
     ASCENDING="ASCENDING"
     DOWN="DOWN"
-
-
 class LungeController:
     def __init__(self):
         self.state=LungeState.IDLE
@@ -349,7 +349,6 @@ class LungeController:
             if(abs(self.heelToHeelDistance)< 1.3 * self.calfLength):
                 self.state=LungeState.IDLE
                 return
-            
             rightCalfSlope = (right_knee[1]-right_heel[1])  / (right_knee[0]-right_heel[0])
             leftCalfSlope = (left_knee[1]-right_heel[1])  / (left_knee[0]-left_heel[0])
     
@@ -420,12 +419,10 @@ class LungeController:
                 cv2.line(annotated_image, left_ankle, right_ankle, (0, 255, 0), 2)
             
             cv2.line(annotated_image, right_knee, right_ankle, (255, 0, 0), 2)
-
             cv2.line(annotated_image, left_hip, left_knee, (0, 255, 0), 2)
             cv2.line(annotated_image, left_knee, left_ankle, (0, 255, 0), 2)
             cv2.line(annotated_image, right_hip, right_knee, (0, 255, 0), 2)
         return annotated_image
-
 
 sitUpController = SitUpController()
 squatController = SquatController()
@@ -454,26 +451,33 @@ def switch_exercise():
 
 @app.route('/get_exercise_data')
 def get_exercise_data():
-    # Return the count and the state from your squatController
+    global latest_detection
+    multiple_detected=False
+
+    if latest_detection and latest_detection.pose_landmarks:
+        if len(latest_detection.pose_landmarks) > 1:
+            multiple_detected = True
+
     currentExercise=exerciseManager.getCurrentExercise()
     return jsonify(
         currentExercise=exerciseManager.currentExercise,
         count=currentExercise.count,
         state=currentExercise.state,
+        multiple_detected=multiple_detected
     )
 
 
 def generate_frames():
+    global latest_detection
     while True:
         success, frame = camera.read()
         if not success:
             break
         mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=frame)
         detection_result = detector.detect(mp_image)
-
+        latest_detection=detection_result    
         currentExercise = exerciseManager.getCurrentExercise()
         currentExercise.update(detection_result, frame.shape)
-
 
         annotated_image = currentExercise.draw(frame, detection_result)
         ret, buffer = cv2.imencode('.jpg', annotated_image)
@@ -569,6 +573,13 @@ def workoutSession():
     knee_angle=0
 
     return render_template("workoutSession.html",squat_count=squat_count,knee_angle=knee_angle)
+
+@app.route('/workoutcomplete')
+def workoutcomplete():
+
+
+    return render_template("workoutcomplete.html")
+
 
 # -------------------------
 # Placeholder
