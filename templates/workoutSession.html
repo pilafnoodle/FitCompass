@@ -140,6 +140,7 @@
     }
         </style>
 </head>
+
 <body>
       <main class="main">
          <header class="top-strip">
@@ -238,5 +239,74 @@
         setInterval(updateStats, 500);
     </script>
 </body>
+  <main class="main">
 
-<!DOCTYPE html>
+    <!-- TOP BAR -->
+    <header class="top-strip">
+      <h1>Workout Session</h1>
+    </header>
+
+    <!-- CONTENT -->
+    <div class="content">
+
+      <!-- LEFT PANEL -->
+      <div class="left-panel">
+
+        <div class="info-card">
+          <h2 id="exercise_label">Current Exercise</h2>
+          <h3 id="exercise_name">Squats</h3>
+        </div>
+
+        <div class="info-card">
+          <h2>Reps</h2>
+          <h3 id="rep_count">0</h3>
+        </div>
+
+        <div class="info-card">
+          <h2>Switch Exercise</h2>
+          <div class="btn-row">
+            <button class="btn" onclick="changeWorkout('squats')">Squats</button>
+            <button class="btn" onclick="changeWorkout('situps')">Sit-ups</button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- CAMERA PANEL -->
+      <div class="camera-box">
+        <img src="{{ url_for('webcam_feed') }}" alt="Webcam feed">
+      </div>
+
+    </div>
+  </main>
+
+  <script>
+    function changeWorkout(name) {
+      fetch('/switch_exercise', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ exercise: name })
+      })
+      .then(res => res.json())
+      .then(() => {
+        document.getElementById('exercise_name').innerText =
+          name.charAt(0).toUpperCase() + name.slice(1);
+      });
+    }
+
+    function updateStats() {
+      fetch('/get_exercise_data')
+        .then(res => res.json())
+        .then(data => {
+          document.getElementById('rep_count').innerText = data.count;
+          document.getElementById('exercise_name').innerText =
+            data.currentExercise.charAt(0).toUpperCase() +
+            data.currentExercise.slice(1);
+        });
+    }
+
+    setInterval(updateStats, 500);
+  </script>
+
+</body>
+</html>
