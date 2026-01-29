@@ -195,12 +195,13 @@ def generate_workout_plan():
 username = input("Enter username: ")
 email = input("Enter email: ")
 password = input("Enter password: ")
-goal = input("Enter goal: ")
+workout_plan = generate_workout_plan()
+##goal = input("Enter goal: ")
 goal_other = ""
 body_part = input("Enter body part focus: ")
 
 # Generate plan
-workout_plan = generate_workout_plan()
+
 
 # Stop if user exits
 if workout_plan is None:
