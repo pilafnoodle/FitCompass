@@ -488,6 +488,18 @@ def generate_frames():
 # -------------------------
 # Login
 # -------------------------
+
+@app.route('/reset_stats', methods=['POST'])
+def reset_stats():
+    # Get the current active controller (Squat, SitUp, or Lunge)
+    current_exercise = exerciseManager.getCurrentExercise()
+    
+    # Reset the count and state inside that specific controller instance
+    current_exercise.count = 0
+    current_exercise.state = "IDLE" 
+    
+    return jsonify({"status": "success", "message": "Counter reset for " + exerciseManager.currentExercise})
+
 @app.route('/', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -590,7 +602,7 @@ def profile():
 
 @app.route('/history')
 def history():
-    return "History page coming soon"
+    return render_template("workoutLog.html")
 
 @app.route('/library')
 def library():
@@ -598,7 +610,7 @@ def library():
 
 @app.route('/shop')
 def shop():
-    return "Shop page coming soon"
+    return render_template("shop.html")
 
 @app.route('/settings')
 def settings():
