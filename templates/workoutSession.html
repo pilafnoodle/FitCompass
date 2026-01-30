@@ -129,6 +129,27 @@
         transform: scaleX(-1); /* Keep your mirror effect */
     }
 
+    /*workout progress bar*/
+    .total-rep-bar{
+      width: 100%;
+      height: 25px;
+      background: rgba(255,255,255,.25);
+      border-radius: 12px;
+      overflow: hidden;
+      margin: 20px;
+    }
+
+    .total-rep-percentage{
+      height: 100%;
+      width: 0%;
+      background: limegreen;
+      text-align: center;
+      line-height: 25px;
+      color: black;
+      font-weight: bold;
+      transition: width 0.3s ease;
+    }
+
     /* Responsive */
     @media(max-width: 900px){
       .content{
@@ -162,8 +183,6 @@
         <h1 id="current_state">state</h1>
         </div>
 
-       
-
       <div class="camera-box">   
              <img src="{{ url_for('webcam_feed') }}">
       </div>
@@ -171,6 +190,13 @@
         <button class="btn" onclick="startSession()">start camera feed!</button>
       </div>
   </div>
+
+  <div class="total-rep-bar">
+    <div id="total-rep-percentage" class="total-rep-percentage">
+          0%
+        </div>
+  </div>
+
     
     <!-- <button onclick="changeWorkout('squats')">count squats</button>
     <button onclick="changeWorkout('situps')">count situps</button>
@@ -183,10 +209,16 @@
         const workoutRoutine=[{name: 'squats', target: 2},
                               {name: 'lunges', target: 2},
                             ]
+
+        repsCompleted = 0; //this is reps completed across all workouts
+        const totalReps=4;
+
         let lastCount=0;
         let routineIndex=0;
         let workoutFinished=false
         let isSwitching = false; // ai lock 
+        const bar = document.getElementById("total-rep-percentage");
+
         function changeExercise(name) {
             fetch('/switch_exercise', {
                 method: 'POST',
@@ -201,19 +233,18 @@
         function moveToNextExercise() {
             if (isSwitching) return;
             isSwitching = true;
-            
-            // 1. Reset the UI immediately for the user
             document.getElementById('rep_count').innerText = "0";
-
-            // 2. Tell the backend to reset its counter
             fetch('/reset_stats', { method: 'POST' })
                 .then(() => {
                     routineIndex++;
                     if (routineIndex < workoutRoutine.length) {
                         const nextExercise = workoutRoutine[routineIndex].name;
+                        lastCount=0;
+                       
                         changeExercise(nextExercise);
                     } else {
                         workoutFinished = true;
+                        repsCompleted=0;
                         window.location.href = "{{ url_for('workoutcomplete') }}";
                     }
                 });
@@ -232,28 +263,44 @@
                     
                     const goalCount= workoutRoutine[routineIndex].target
 
+                    bar.style.width = (repsCompleted/totalReps) *100+ "%";
+                    bar.textContent = (repsCompleted/totalReps)*100 + "%";
+                    if(lastCount<data.count){
+                      const diff = data.count - lastCount;  // how many reps actually increased
+  
+                      lastCount=data.count;
+                      repsCompleted += diff;
+                      ding.play();
+                    }
+
                     if(data.count>=goalCount){
                         moveToNextExercise()
                     }
-
-
                 })
         }
-       
-    function startSession(){
-      document.getElementById("overlay").style.display='none';
-      ding.play().then(() => {
-        ding.pause();
-        ding.currentTime = 0;
-      }).catch(error => console.log("Audio primed"));
-      const cameraImg = document.querySelector('.camera-box img');
-      cameraImg.style.display = 'block';
-          setInterval(updateStats, 500);
+        function startSession(){
+          document.getElementById("overlay").style.display='none';
+          ding.play().then(() => {
+            ding.pause();
+            ding.currentTime = 0;
+          }).catch(error => console.log("Audio primed"));
+          const cameraImg = document.querySelector('.camera-box img');
+          cameraImg.style.display = 'block';
+              setInterval(updateStats, 500);
 
-    }
+        }
 
+        window.onload = () => {
+          repsCompleted = 0;
+          lastCount = 0;
+          routineIndex = 0;
+          workoutFinished = false;
 
-    setInterval(updateStats, 500);
+          bar.style.width = "0%";
+          bar.textContent = "0%";
+          document.getElementById('rep_count').innerText = "0";
+        };
+    setInterval(updateStats, 300);
   </script>
 
 </html>
