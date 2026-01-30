@@ -1,11 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Fit Compass – Workout Session</title>
-
-  <style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>JUST DID IT</title>
+        <style>
     :root{
       --bg-main: #1f4d69;
       --panel-top: #d8eff4;
@@ -16,7 +15,6 @@
       --shadow: 0 10px 30px rgba(0,0,0,.18);
       --font: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
     }
-
     *{ box-sizing: border-box; }
     body{
       margin: 0;
@@ -110,22 +108,25 @@
     }
 
     /* ---------------- CAMERA ---------------- */
-    .camera-box{
-        background: var(--card);
-        border: 2px solid rgba(0,0,0,.2);
+/* Constrain the camera box to a 16:9 aspect ratio container */
+    .camera-box {
+        background: #000; /* Black bars if the feed doesn't fit */
+        border: 4px solid rgba(255,255,255,0.1);
         box-shadow: var(--shadow);
-        border-radius: 6px;
+        border-radius: 12px;
         overflow: hidden;
-
-        height: min(70vh, 720px);   /* taller but capped */
+        width: 100%;
+        max-width: 90vh; /* Limits the width so it's not "too wide" */
+        margin: 0 auto;   /* Centers it */
+        position: relative;
     }
 
-    .camera-box img{
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      display: block;
-      transform: scaleX(-1);
+    .camera-box img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain; /* Shows the full frame without stretching */
+        display: none;
+        transform: scaleX(-1); /* Keep your mirror effect */
     }
 
     /* Responsive */
@@ -134,37 +135,55 @@
         grid-template-columns: 1fr;
       }
       .camera-box{
-        height: 320px;
+        height: 600px;
       }
     }
-  </style>
+        </style>
 </head>
 
 <body>
-        <h1>
-            Fit Compass
-        </h1>
-        <h2 id="exercise_label">Current Exercise: squats</h2>
-        <h1 id="rep_count">count = 0:</h1>
-        <h1 id="current_state">state</h1>
+      <main class="main">
+         <header class="top-strip">
+      <h1>Workout Session</h1>
+    </header>
+<div class="content">
 
-        <div id="multi_person_warning" style="display: none; color: white; background-color: #ff4444; padding: 15px; border-radius: 8px; margin: 10px; text-align: center; font-weight: bold;">
-        Multiple people detected! Please have only one person in frame for accurate counting.
+      <div class="left-panel">
+        <div class="info-card">
+          <h2 id="exercise_label">Current Exercise</h2>
+          <h3 id="exercise_name">Squats</h3>
+
         </div>
 
-    <div>
-        <img src="{{ url_for('webcam_feed') }}" width="640" height="480">
-    </div>
+          <div class="info-card">
+            <h2>Reps</h2>
+          <h3 id="rep_count">0</h3>
+        </div>
+        <h1 id="current_state">state</h1>
+        </div>
+
+       
+
+      <div class="camera-box">   
+             <img src="{{ url_for('webcam_feed') }}">
+      </div>
+         <div id="overlay">
+        <button class="btn" onclick="startSession()">start camera feed!</button>
+      </div>
+  </div>
     
-    <button onclick="changeWorkout('squats')">count squats</button>
+    <!-- <button onclick="changeWorkout('squats')">count squats</button>
     <button onclick="changeWorkout('situps')">count situps</button>
-    <button onclick="changeWorkout('lunges')">count lunges</button>
+    <button onclick="changeWorkout('lunges')">count lunges</button> -->
+  </main>
 
     <script>
+        const ding=new Audio("{{url_for('static', filename='repding.mp3')}}");
+
         const workoutRoutine=[{name: 'squats', target: 2},
                               {name: 'lunges', target: 2},
                             ]
-        
+        let lastCount=0;
         let routineIndex=0;
         let workoutFinished=false
         let isSwitching = false; // ai lock 
@@ -176,23 +195,30 @@
             }).then(response => response.json())
             .then(data => {
                 console.log("Switched to: " + name);
-                document.getElementById('exercise_label').innerText = "Current Exercise: " + name;
+                document.getElementById('exercise_name').innerText = name;
             });
         }
-        function moveToNextExercise(){
-            if (isSwitching) return; // Don't run if already switching
-                isSwitching = true;
-            routineIndex++;
+        function moveToNextExercise() {
+            if (isSwitching) return;
+            isSwitching = true;
             
-            if(routineIndex < workoutRoutine.length){
-                const nextExercise = workoutRoutine[routineIndex].name;
-                changeExercise(nextExercise);
-            }else{
-                workoutFinished=true
-                window.location.href = "{{ url_for('workoutcomplete') }}";
-            }
-            setTimeout(() => { isSwitching = false; }, 1000);
+            // 1. Reset the UI immediately for the user
+            document.getElementById('rep_count').innerText = "0";
 
+            // 2. Tell the backend to reset its counter
+            fetch('/reset_stats', { method: 'POST' })
+                .then(() => {
+                    routineIndex++;
+                    if (routineIndex < workoutRoutine.length) {
+                        const nextExercise = workoutRoutine[routineIndex].name;
+                        changeExercise(nextExercise);
+                    } else {
+                        workoutFinished = true;
+                        window.location.href = "{{ url_for('workoutcomplete') }}";
+                    }
+                });
+
+            setTimeout(() => { isSwitching = false; }, 1000);
         }
 
         function updateStats() {
@@ -213,92 +239,21 @@
 
                 })
         }
-        function canStartExercising(){
-            fetch('/get_exercise_data')
-                .then(response => response.json())
-                .then(data => {
+       
+    function startSession(){
+      document.getElementById("overlay").style.display='none';
+      ding.play().then(() => {
+        ding.pause();
+        ding.currentTime = 0;
+      }).catch(error => console.log("Audio primed"));
+      const cameraImg = document.querySelector('.camera-box img');
+      cameraImg.style.display = 'block';
+          setInterval(updateStats, 500);
 
-                    const warningBox = document.getElementById('multi_person_warning');
-            
-                    if (data.multiple_detected === true) {
-                        warningBox.style.display = "block";  // Show the red warning
-                    } else {
-                        warningBox.style.display = "none";   // Hide it when clear
-                    }
-                })
-        }
-
-        setInterval(updateStats, 500);
-    </script>
-</body>
-  <main class="main">
-
-    <!-- TOP BAR -->
-    <header class="top-strip">
-      <h1>Workout Session</h1>
-    </header>
-
-    <!-- CONTENT -->
-    <div class="content">
-
-      <!-- LEFT PANEL -->
-      <div class="left-panel">
-
-        <div class="info-card">
-          <h2 id="exercise_label">Current Exercise</h2>
-          <h3 id="exercise_name">Squats</h3>
-        </div>
-
-        <div class="info-card">
-          <h2>Reps</h2>
-          <h3 id="rep_count">0</h3>
-        </div>
-
-        <div class="info-card">
-          <h2>Switch Exercise</h2>
-          <div class="btn-row">
-            <button class="btn" onclick="changeWorkout('squats')">Squats</button>
-            <button class="btn" onclick="changeWorkout('situps')">Sit-ups</button>
-          </div>
-        </div>
-
-      </div>
-
-      <!-- CAMERA PANEL -->
-      <div class="camera-box">
-        <img src="{{ url_for('webcam_feed') }}" alt="Webcam feed">
-      </div>
-
-    </div>
-  </main>
-
-  <script>
-    function changeWorkout(name) {
-      fetch('/switch_exercise', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ exercise: name })
-      })
-      .then(res => res.json())
-      .then(() => {
-        document.getElementById('exercise_name').innerText =
-          name.charAt(0).toUpperCase() + name.slice(1);
-      });
     }
 
-    function updateStats() {
-      fetch('/get_exercise_data')
-        .then(res => res.json())
-        .then(data => {
-          document.getElementById('rep_count').innerText = data.count;
-          document.getElementById('exercise_name').innerText =
-            data.currentExercise.charAt(0).toUpperCase() +
-            data.currentExercise.slice(1);
-        });
-    }
 
     setInterval(updateStats, 500);
   </script>
 
-</body>
 </html>
