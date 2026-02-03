@@ -156,6 +156,10 @@
       object-fit: contain;
     }
 
+    .exercise-preview{
+      display: none;
+    }
+
     /* ---------------- CAMERA ---------------- */
 /* Constrain the camera box to a 16:9 aspect ratio container */
     .camera-box {
@@ -359,6 +363,7 @@
       }).catch(error => console.log("Audio primed"));
       const cameraImg = document.querySelector('.camera-box img');
       cameraImg.style.display = 'block';
+      document.querySelector('.exercise-preview').style.display = 'block';
       const first = workoutRoutine[0];
           changeExercise(first.name);
           applyExerciseUIMode(first);
@@ -379,6 +384,11 @@
       squats: "{{ url_for('static', filename='squats.gif') }}",
       lunges: "{{ url_for('static', filename='lunges.gif') }}",
       situps: "{{ url_for('static', filename='situps.gif') }}",
+      gluebridges: "{{ url_for('static', filename='glutebridges.gif') }}",
+      jumpingjacks: "{{ url_for('static', filename='jumpinjacks.gif') }}",
+      pushup: "{{ url_for('static', filename='pushup.gif') }}",
+      supermans: "{{ url_for('static', filename='supermans.gif') }}",
+      running: "{{ url_for('static', filename='running.gif') }}",
     };
 
   </script>
