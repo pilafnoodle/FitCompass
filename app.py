@@ -430,26 +430,40 @@ class RunningState:
 class RunningController:
     def __init__(self):
         self.state = RunningState.TIMER
-        self.count = 0  # not used, but keeps your API consistent
+        self.count = 0
 
     def update(self, detection_result, image_shape):
-        # No AI. Frontend handles 30-second timer.
         return
 
     def draw(self, image, detection_result):
         # No extra drawing.
         return image
 
+class JumpingJackState:
+    TIMER = "TIMER"
+
+class JumpingJacksController:
+    def __init__(self):
+        self.state = JumpingJackState.TIMER
+        self.count = 0
+
+    def update(self, detection_result, image_shape):
+        return
+
+    def draw(self, image, detection_result):
+        return image
+
 sitUpController = SitUpController()
 squatController = SquatController()
 lungeController = LungeController()
 runningController = RunningController()
+jumpingjacksController = JumpingJacksController()
 
 class exerciseManager():
     def __init__(self):
-        self.exercises={"squats": SquatController(), "situps" : SitUpController(), "lunges" : LungeController(), "running" : RunningController()}
+        self.exercises={"squats": SquatController(), "situps" : SitUpController(), "lunges" : LungeController(), "running" : RunningController(), "jumpingjacks" : JumpingJacksController()}
     
-        self.currentExercise="running"
+        self.currentExercise="jumpingjacks"
     def getCurrentExercise(self):
         return self.exercises[self.currentExercise]
     def setCurrentExercise(self,exerciseName):
