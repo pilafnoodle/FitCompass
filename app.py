@@ -11,6 +11,8 @@ import math
 from flask import jsonify
 import time
 from flask import Response
+import json
+
 
 
 from landmarks import *
@@ -46,20 +48,18 @@ cursor = connection.cursor()
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS UserLogins(
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    username TEXT UNIQUE NOT NULL,
-    email TEXT UNIQUE NOT NULL,
-    password TEXT NOT NULL,
+    username TEXT UNIQUE,
+    email TEXT UNIQUE,
+    password TEXT,
     goal TEXT,
     goal_other TEXT,
-    workouts_per_week INTEGER,
-    body_part TEXT
+    workouts_per_week TEXT,
+    body_part TEXT,
+    workout_plan TEXT
 )
 """)
 
 connection.commit()
-
-
-
 connection.close()
 
 # Webcam setup
@@ -185,6 +185,10 @@ class SitUpController:
             cv2.line(annotated_image, right_hip, right_knee, (0, 255, 0), 2)
             cv2.line(annotated_image, right_knee, right_ankle, (0, 255, 0), 2)
         return annotated_image
+
+## test
+def normalize_name(name):
+    return name.lower().replace("-", "").replace(" ", "")
 
 class SquatState:
     IDLE="IDLE"
@@ -427,78 +431,96 @@ class LungeController:
             cv2.line(annotated_image, right_hip, right_knee, (0, 255, 0), 2)
         return annotated_image
 
-class RunningState:
-    TIMER = "TIMER"
-
-class RunningController:
-    def __init__(self):
-        self.state = RunningState.TIMER
-        self.count = 0
-
-    def update(self, detection_result, image_shape):
-        return
-
-    def draw(self, image, detection_result):
-        # No extra drawing.
-        return image
-
-class JumpingJackState:
-    TIMER = "TIMER"
-
-class JumpingJacksController:
-    def __init__(self):
-        self.state = JumpingJackState.TIMER
-        self.count = 0
-
-    def update(self, detection_result, image_shape):
-        return
-
-    def draw(self, image, detection_result):
-        return image
-
 sitUpController = SitUpController()
 squatController = SquatController()
 lungeController = LungeController()
-runningController = RunningController()
-jumpingjacksController = JumpingJacksController()
 
-class exerciseManager():
-    def __init__(self):
-        self.exercises={"squats": SquatController(), "situps" : SitUpController(), "lunges" : LungeController(), "running" : RunningController(), "jumpingjacks" : JumpingJacksController()}
-    
-        self.currentExercise="jumpingjacks"
+class ExerciseManager:
+
+    def __init__(self, today_exercises):
+
+        self.all_controllers = {
+            "squats": SquatController(),
+            "situps": SitUpController(),
+            "lunges": LungeController()
+        }
+
+        self.exercises = {}
+
+        for ex in today_exercises:
+
+            clean = normalize_name(ex)
+
+            if clean in self.all_controllers:
+                self.exercises[clean] = self.all_controllers[clean]
+
+        self.currentExercise = (
+            list(self.exercises.keys())[0]
+            if self.exercises else None
+        )
+
+
     def getCurrentExercise(self):
+
+        if not self.currentExercise:
+            return None
+
         return self.exercises[self.currentExercise]
-    def setCurrentExercise(self,exerciseName):
-        self.currentExercise=exerciseName
-
-exerciseManager=exerciseManager()
 
 
+    def setCurrentExercise(self, name):
 
-@app.route('/switch_exercise',methods=["POST"])
+        clean = normalize_name(name)
+
+        if clean in self.exercises:
+            self.currentExercise = clean
+
+##exerciseManager=exerciseManager()
+exerciseManager = None
+
+
+
+@app.route('/switch_exercise', methods=["POST"])
 def switch_exercise():
+
+    global exerciseManager
+
+    if not exerciseManager:
+        return jsonify(error="No active workout")
+
     data = request.get_json()
     new_exercise = data.get('exercise')
+
     exerciseManager.setCurrentExercise(new_exercise)
+
     return jsonify(status="success", now_doing=new_exercise)
 
 @app.route('/get_exercise_data')
 def get_exercise_data():
-    global latest_detection
-    multiple_detected=False
+
+    global latest_detection, exerciseManager
+
+    if not exerciseManager:
+        return jsonify(error="No active workout")
+
+    multiple_detected = False
 
     if latest_detection and latest_detection.pose_landmarks:
         if len(latest_detection.pose_landmarks) > 1:
             multiple_detected = True
 
-    currentExercise=exerciseManager.getCurrentExercise()
+    currentExercise = exerciseManager.getCurrentExercise()
+
+    if not currentExercise:
+        return jsonify(error="No exercise loaded")
+
     return jsonify(
         currentExercise=exerciseManager.currentExercise,
         count=currentExercise.count,
         state=currentExercise.state,
         multiple_detected=multiple_detected
     )
+
 
 
 def generate_frames():
@@ -518,6 +540,232 @@ def generate_frames():
         frame_bytes = buffer.tobytes()
         yield (b'--frame\r\n'
             b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+
+
+import random
+
+
+
+
+# ---------------- EXERCISES ----------------
+# ---------------- GLOBAL STORAGE ----------------
+
+all_selected_exercises = []
+
+# ---------------- EXERCISES ----------------
+
+upper_body = ["Push-ups", "V pushups", "Inverted Rows", "Pull-ups"]
+lower_body = ["squats", "lunges", "Glute Bridges", "Calf Raises"]
+core = ["Sit-ups", "Supermans"]
+time_core = ["Plank"] 
+cardio = ["Jumping Jacks", "Jogging in Place", "Running", "Jump Rope", "Burpees"]
+
+push_day = ["Push-ups", "V pushups"]
+leg_day = ["Squats", "Lunges", "Calf Raises"]
+
+new_people_exercises = [
+    "Glute Bridges", "Jogging in Place", "Jumping Jacks",
+    "Lunges", "Push-ups", "Sit-ups", "Squats", "Supermans"
+]
+
+# ---------------- REPS ----------------
+
+rep_ranges = {
+    "Beginner": {
+        "strength": "2–3 sets of 8–12 reps",
+        "core": "2–3 sets of 10–15 reps", 
+        "long core": "1:30 min",
+        "cardio": "30–60 seconds"
+    }
+}
+
+# ---------------- HELPERS ----------------
+
+def pick_random(ex_list, num):
+    return random.sample(ex_list, k=min(num, len(ex_list)))
+
+
+def format_exercise(ex, category):
+
+    rows = ""
+
+    for level, reps in rep_ranges.items():
+
+        # Save to array
+        all_selected_exercises.append([
+            ex,
+            category,
+            reps[category]
+        ])
+
+        # Format output
+        rows += f"{ex:<20} | {category:<10} | {reps[category]}\n"
+
+    return rows
+
+
+# ---------------- GENERATE PLAN ----------------
+
+def generate_workout_plan(goal, days_per_week, body_part, other_goal=None):
+
+    # ✅ Reset array each time
+    all_selected_exercises.clear()
+
+    # ✅ Initialize plan
+    plan = ""
+
+    plan += f"Goal: {goal}\n"
+
+    if other_goal:
+        plan += f"Custom Goal: {other_goal}\n"
+
+    plan += f"Workouts per Week: {days_per_week}\n"
+    plan += f"Focus Area: {body_part}\n\n"
+
+
+    # ---------------- MAP GOALS ----------------
+
+    if goal == "get fit":
+        mode = "balanced"
+
+    elif goal == "lose weight":
+        mode = "cardio"
+
+    elif goal == "gain strength":
+        mode = "strength"
+
+    elif goal == "trying something new":
+        mode = "variety"
+
+    else:
+        mode = "custom"
+
+
+    # ---------------- EXERCISE POOLS ----------------
+
+    body_map = {
+        "legs": lower_body,
+        "arms": upper_body,
+        "chest": push_day,
+        "abdomen": core,
+        "glute": ["Glute Bridges", "Hip Thrusts"],
+        "shoulder": ["Shoulder Press", "Lateral Raises"],
+        "back": ["Pull-ups", "Rows", "Supermans"]
+    }
+
+    focus_list = body_map.get(body_part, upper_body)
+
+
+    # ---------------- BUILD PLAN ----------------
+
+    for day in range(1, days_per_week + 1):
+
+        plan += f"DAY {day}\n"
+
+
+        # CARDIO MODE
+        if mode == "cardio":
+
+            for ex in pick_random(cardio, 2):
+                plan += format_exercise(ex, "cardio")
+
+            for ex in pick_random(focus_list, 2):
+                plan += format_exercise(ex, "strength")
+
+            plan += format_exercise(random.choice(cardio), "cardio")
+
+
+        # STRENGTH MODE
+        elif mode == "strength":
+
+            for ex in pick_random(focus_list, 2):
+                plan += format_exercise(ex, "strength")
+
+            plan += format_exercise(random.choice(lower_body), "strength")
+            plan += format_exercise(random.choice(upper_body), "strength")
+
+
+        # VARIETY MODE
+        elif mode == "variety":
+
+            mix = cardio + upper_body + lower_body + core
+
+            for ex in pick_random(mix, 3):
+
+                category = (
+                    "cardio" if ex in cardio
+                    else "core" if ex in core
+                    else "strength"
+                )
+
+                plan += format_exercise(ex, category)
+
+
+        # BALANCED / CUSTOM
+        else:
+
+            for ex in pick_random(focus_list, 2):
+                plan += format_exercise(ex, "strength")
+
+            plan += format_exercise(random.choice(cardio), "cardio")
+            plan += format_exercise(random.choice(core), "core")
+            plan += format_exercise(random.choice(time_core), "long core")
+            plan += format_exercise(random.choice(upper_body), "strength")
+
+
+        plan += "\n"
+
+
+    return plan
+
+
+def get_user_exercises(username):
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT goal_other, workouts_per_week
+        FROM UserLogins
+        WHERE username = ?
+    """, (username,))
+
+    row = cursor.fetchone()
+    conn.close()
+
+    if not row:
+        return [], 0
+
+    exercises = json.loads(row["goal_other"])
+
+    return exercises, row["workouts_per_week"]
+
+def get_today_exercises(username, day_number=1):
+
+    exercises, per_week = get_user_exercises(username)
+
+    if not exercises:
+        return []
+
+    # Convert to int (FIX)
+    try:
+        per_week = int(per_week)
+    except (TypeError, ValueError):
+        per_week = 1   # fallback safety
+
+    if per_week <= 0:
+        per_week = 1
+
+    # How many exercises per day
+    per_day = max(1, len(exercises) // per_week)
+
+    start = (day_number - 1) * per_day
+    end = start + per_day
+
+    return [ex[0] for ex in exercises[start:end]]
+
+
+
 
 # -------------------------
 # Login
@@ -561,39 +809,65 @@ def login():
 # -------------------------
 @app.route('/register', methods=['GET', 'POST'])
 def register():
+
     if request.method == 'POST':
+
         username = request.form['username']
         email = request.form['email']
         password = generate_password_hash(request.form['password'])
 
+        # Get form values
         goal = request.form.get('goal')
-        goal_other = request.form.get('goal_other') if goal == 'other' else None
-        workouts_per_week = request.form.get('workouts_per_week')
+        workouts_per_week = int(request.form.get('workouts_per_week'))
         body_part = request.form.get('body_part')
+
+
+        # ✅ Generate workout FIRST
+        workout_plan = generate_workout_plan(
+            goal,
+            workouts_per_week,
+            body_part
+        )
+
+
+        # ✅ Convert exercise list to JSON
+        goal_other = json.dumps(all_selected_exercises)
+
 
         try:
             conn = get_db_connection()
             cursor = conn.cursor()
 
-            # Insert user
-            cursor.execute(
-                """
-                INSERT INTO UserLogins (username, email, password, goal, goal_other, workouts_per_week, body_part)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-                """,
-                (username, email, password, goal, goal_other, workouts_per_week, body_part)
-            )
-            user_id = cursor.lastrowid
+            cursor.execute("""
+                INSERT INTO UserLogins
+                (username, email, password, goal, goal_other,
+                 workouts_per_week, body_part, workout_plan)
+
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                username,
+                email,
+                password,
+                goal,
+                goal_other,           # JSON string
+                workouts_per_week,
+                body_part,
+                workout_plan
+            ))
+
 
             conn.commit()
             conn.close()
 
             return redirect(url_for('login'))
 
+
         except sqlite3.IntegrityError:
+
             conn.close()
             flash("Username or email already exists")
             return redirect(url_for('register'))
+
 
     return render_template('register.html')
 
@@ -602,12 +876,27 @@ def register():
 # -------------------------
 @app.route('/home')
 def home():
+
     if 'username' not in session:
         return redirect(url_for('login'))
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT workout_plan
+        FROM UserLogins
+        WHERE username = ?
+    """, (session['username'],))
+
+    plan = cursor.fetchone()[0]
+
+    conn.close()
 
     return render_template(
         'home.html',
         username=session['username'],
+        workout_plan=plan,
         points=120,
         goal_percent=62
     )
@@ -615,14 +904,34 @@ def home():
 
 @app.route('/workoutSession')
 def workoutSession():
-    squat_count=0
-    knee_angle=0
 
-    return render_template("workoutSession.html",squat_count=squat_count,knee_angle=knee_angle)
+    global exerciseManager
+
+    if "username" not in session:
+        return redirect(url_for("login"))
+
+    username = session["username"]
+
+    day = 1
+
+    today_exercises = get_today_exercises(username, day)
+
+    # Default if empty
+    if not today_exercises:
+        today_exercises = ["squats"]
+
+    exerciseManager = ExerciseManager(today_exercises)
+
+    return render_template(
+        "workoutSession.html",
+        exercises=today_exercises
+    )
 
 @app.route('/workoutcomplete')
 def workoutcomplete():
 
+    if "username" not in session:
+        return redirect(url_for("login"))
 
     return render_template("workoutcomplete.html")
 
