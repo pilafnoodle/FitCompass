@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>FitCompass - Register</title>
+
+  <style>
+    body{
+      margin:0;
+      font-family:ui-monospace, Menlo, Consolas, monospace;
+      background:#0f2330;
+      color:white;
+      height:100vh;
+      display:flex;
+      justify-content:center;
+      align-items:center;
+    }
+
+    .card{
+      background:#d8eff4;
+      color:#000;
+      padding:32px;
+      border-radius:14px;
+      width:420px;
+      box-shadow:0 10px 30px rgba(0,0,0,.3);
+    }
+
+    h2{ text-align:center; }
+
+    label{
+      display:block;
+      margin-top:14px;
+      font-weight:bold;
+    }
+
+    input, select, textarea{
+      width:100%;
+      padding:10px;
+      margin-top:6px;
+      border-radius:8px;
+      border:1px solid #ccc;
+      font-family:inherit;
+    }
+
+    textarea{ resize:none; }
+
+    button{
+      width:100%;
+      padding:14px;
+      margin-top:22px;
+      border:none;
+      border-radius:10px;
+      background:#a9d99b;
+      font-size:16px;
+      cursor:pointer;
+    }
+
+    .hidden{ display:none; }
+
+    .link{
+      text-align:center;
+      margin-top:12px;
+      display:block;
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="card">
+  <img src="{{ url_for('static', filename='logo.png') }}" alt="FitCompass logo" style="display:block; margin:0 auto 20px auto; max-width:120px;" />
+
+  <h2>Create Account</h2>
+
+  {% with messages = get_flashed_messages() %}
+    {% if messages %}
+      <p style="color:red; text-align:center;">{{ messages[0] }}</p>
+    {% endif %}
+  {% endwith %}
+
+  <form method="POST">
+
+    <label>Username</label>
+    <input name="username" required>
+
+    <label>Email</label>
+    <input name="email" type="email" required>
+
+    <label>Password</label>
+    <input name="password" type="password" required>
+
+    <hr>
+
+    <label>What is your goal when using FitCompass?</label>
+    <select name="goal" id="goal" onchange="toggleOther()" required>
+      <option value="">Select one</option>
+      <option value="get fit">Get fit</option>
+      <option value="lose weight">Lose weight</option>
+      <option value="gain strength">Gain strength</option>
+      <option value="trying something new">Trying something new</option>
+      <option value="other">Other</option>
+    </select>
+
+    <div id="otherGoal" class="hidden">
+      <label>What is your goal that is not listed above?</label>
+      <textarea name="other_goal" rows="3"></textarea>
+    </div>
+
+    <label>How many workouts do you want to do a week?</label>
+    <select name="workouts_per_week">
+      <option value="1">1</option>
+      <option value="2">2</option>
+      <option value="3">3</option>
+      <option value="4">4</option>
+      <option value="5">5</option>
+      <option value="6">6</option>
+      <option value="7">7</option>
+    </select>
+
+    <label>Is there a body part you want to focus on?</label>
+    <select name="body_part" required>
+      <option value="">Select one</option>
+      <option>legs</option>
+      <option>arms</option>
+      <option>chest</option>
+      <option>abdomen</option>
+      <option>glute</option>
+      <option>wrists</option>
+      <option>shoulder</option>
+      <option>back</option>
+      <option>neck</option>
+      <option>other</option>
+    </select>
+
+    <script>
+    function toggleOtherGoal() {
+      const goalSelect = document.getElementById('goal');
+      const otherDiv = document.getElementById('goal_other_div');
+      otherDiv.style.display = goalSelect.value === 'other' ? 'block' : 'none';
+    }
+    </script>
+
+    <button type="submit">Create Account</button>
+  </form>
+
+  <a class="link" href="{{ url_for('login') }}">Back to login</a>
+</div>
+
+<script>
+  function toggleOther(){
+    const goal = document.getElementById("goal").value;
+    document.getElementById("otherGoal")
+      .classList.toggle("hidden", goal !== "other");
+  }
+</script>
+
+</body>
+</html>

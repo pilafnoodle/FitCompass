@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>JUST DID IT</title>
+        <style>
+    :root{
+      --bg-main: #1f4d69;
+      --panel-top: #d8eff4;
+      --card: rgba(0,0,0,.18);
+      --divider: rgba(255,255,255,.22);
+      --text-dark: #0f1a1f;
+      --text-light: rgba(255,255,255,.92);
+      --shadow: 0 10px 30px rgba(0,0,0,.18);
+      --font: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    }
+    *{ box-sizing: border-box; }
+    body{
+      margin: 0;
+      font-family: var(--font);
+      background: #0f2330;
+      color: white;
+      min-height: 100vh;
+    }
+
+    .main{
+      background: var(--bg-main);
+      min-height: 100vh;
+    }
+
+    /* ---------------- TOP BAR ---------------- */
+    .top-strip{
+      height: 90px;
+      background: var(--panel-top);
+      color: var(--text-dark);
+      display: flex;
+      align-items: center;
+      padding: 0 26px;
+      border-bottom: 3px solid rgba(0,0,0,.12);
+    }
+
+    .top-strip h1{
+      margin: 0;
+      font-size: 28px;
+      font-weight: 500;
+      letter-spacing: .5px;
+    }
+
+    /* ---------------- CONTENT ---------------- */
+    .content{
+      padding: 26px;
+      display: grid;
+      grid-template-columns: 1fr 1.4fr;
+      gap: 26px;
+      align-items: start;
+    }
+
+    /* Left column */
+    .left-panel{
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .info-card{
+      background: var(--card);
+      border: 2px solid rgba(0,0,0,.2);
+      box-shadow: var(--shadow);
+      padding: 18px;
+      border-radius: 6px;
+    }
+
+    .info-card h2{
+      margin: 0 0 8px;
+      font-size: 20px;
+      color: var(--text-light);
+    }
+
+    .info-card h3{
+      margin: 0;
+      font-size: 26px;
+      font-weight: 600;
+      color: white;
+    }
+
+    /* Buttons */
+    .btn-row{
+      display: flex;
+      gap: 12px;
+      margin-top: 10px;
+    }
+
+    .btn{
+      flex: 1;
+      padding: 14px;
+      border-radius: 10px;
+      border: none;
+      background: white;
+      font-family: var(--font);
+      font-size: 16px;
+      cursor: pointer;
+      box-shadow: 0 6px 14px rgba(0,0,0,.16);
+    }
+
+    .btn:active{
+      transform: translateY(1px);
+    }
+
+    /* ---------------- CAMERA ---------------- */
+/* Constrain the camera box to a 16:9 aspect ratio container */
+    .camera-box {
+        background: #000; /* Black bars if the feed doesn't fit */
+        border: 4px solid rgba(255,255,255,0.1);
+        box-shadow: var(--shadow);
+        border-radius: 12px;
+        overflow: hidden;
+        width: 100%;
+        max-width: 90vh; /* Limits the width so it's not "too wide" */
+        margin: 0 auto;   /* Centers it */
+        position: relative;
+    }
+
+    .camera-box img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain; /* Shows the full frame without stretching */
+        display: none;
+        transform: scaleX(-1); /* Keep your mirror effect */
+    }
+
+    /* Responsive */
+    @media(max-width: 900px){
+      .content{
+        grid-template-columns: 1fr;
+      }
+      .camera-box{
+        height: 600px;
+      }
+    }
+        </style>
+</head>
+
+<body>
+      <main class="main">
+         <header class="top-strip">
+      <h1>Workout Session</h1>
+    </header>
+<div class="content">
+
+      <div class="left-panel">
+        <div class="info-card">
+          <h2 id="exercise_label">Current Exercise</h2>
+          <h3 id="exercise_name">Squats</h3>
+
+        </div>
+
+          <div class="info-card">
+            <h2>Reps</h2>
+          <h3 id="rep_count">0</h3>
+        </div>
+        <h1 id="current_state">state</h1>
+        </div>
+
+       
+
+      <div class="camera-box">   
+             <img src="{{ url_for('webcam_feed') }}">
+      </div>
+         <div id="overlay">
+        <button class="btn" onclick="startSession()">start camera feed!</button>
+      </div>
+  </div>
+    
+    <!-- <button onclick="changeWorkout('squats')">count squats</button>
+    <button onclick="changeWorkout('situps')">count situps</button>
+    <button onclick="changeWorkout('lunges')">count lunges</button> -->
+  </main>
+
+
+
+  
+   <script>
+const ding = new Audio("{{ url_for('static', filename='repding.mp3') }}");
+
+/* Get exercises safely from Flask */
+const workoutRoutine = JSON.parse('{{ exercises | tojson | safe }}')
+    .map(ex => ({
+        name: ex,
+        target: 3
+    }));
+
+console.log("Workout Routine:", workoutRoutine);
+
+let routineIndex = 0;
+let workoutFinished = false;
+let isSwitching = false;
+
+
+/* ---------------- SWITCH EXERCISE ---------------- */
+
+function changeExercise(name) {
+    fetch('/switch_exercise', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ exercise: name })
+    })
+    .then(res => res.json())
+    .then(() => {
+        document.getElementById('exercise_name').innerText = name;
+    });
+}
+
+
+/* ---------------- NEXT EXERCISE ---------------- */
+
+function moveToNextExercise() {
+
+    if (isSwitching) return;
+    isSwitching = true;
+
+    // Reset UI
+    document.getElementById('rep_count').innerText = "0";
+
+    // Reset backend counter
+    fetch('/reset_stats', { method: 'POST' })
+    .then(() => {
+
+        routineIndex++;
+
+        if (routineIndex < workoutRoutine.length) {
+
+            const next = workoutRoutine[routineIndex].name;
+            changeExercise(next);
+
+        } else {
+
+            workoutFinished = true;
+            window.location.href = "{{ url_for('workoutcomplete') }}";
+        }
+    });
+
+    setTimeout(() => isSwitching = false, 800);
+}
+
+
+/* ---------------- UPDATE STATS ---------------- */
+
+function updateStats() {
+
+    if (workoutFinished) return;
+
+    fetch('/get_exercise_data')
+    .then(res => res.json())
+    .then(data => {
+
+        if (!data || !data.currentExercise) return;
+
+        document.getElementById('rep_count').innerText = data.count;
+        document.getElementById('current_state').innerText = data.state;
+
+        const goal = workoutRoutine[routineIndex].target;
+
+        if (data.count >= goal) {
+            moveToNextExercise();
+        }
+    });
+}
+
+
+/* ---------------- START SESSION ---------------- */
+
+function startSession() {
+
+    document.getElementById("overlay").style.display = 'none';
+
+    // Prime audio
+    ding.play().then(() => {
+        ding.pause();
+        ding.currentTime = 0;
+    });
+
+    // Show camera
+    document.querySelector('.camera-box img').style.display = 'block';
+
+    // Start polling
+    setInterval(updateStats, 500);
+}
+
+
+/* ---------------- INIT FIRST EXERCISE ---------------- */
+
+window.onload = () => {
+
+    if (workoutRoutine.length > 0) {
+        changeExercise(workoutRoutine[0].name);
+    }
+};
+</script>
+
+
+</html>
