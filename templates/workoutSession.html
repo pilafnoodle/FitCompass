@@ -38,6 +38,7 @@
       align-items: center;
       padding: 0 26px;
       border-bottom: 3px solid rgba(0,0,0,.12);
+      justify-content: space-between;
     }
 
     .top-strip h1{
@@ -45,6 +46,21 @@
       font-size: 28px;
       font-weight: 500;
       letter-spacing: .5px;
+    }
+
+    .end-btn{
+      background:#ffb3b3; /* light red */
+      padding:10px 16px;
+      border-radius:10px;
+      text-decoration:none;
+      color:#5a0000;
+      font-weight:600;
+      box-shadow: 0 6px 14px rgba(0,0,0,.16);
+      transition:.15s;
+    }
+
+    .end-btn:hover{
+      background:#ff9999;
     }
 
     /* ---------------- CONTENT ---------------- */
@@ -93,7 +109,7 @@
 
     .btn{
       flex: 1;
-      padding: 14px;
+      padding:20px 40px;
       border-radius: 10px;
       border: none;
       background: white;
@@ -103,8 +119,45 @@
       box-shadow: 0 6px 14px rgba(0,0,0,.16);
     }
 
+    #overlay{
+      position:absolute;
+      inset:0;
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      background: rgba(0,0,0,.35);
+    }
+
+    .start-btn{
+      padding:20px 40px;
+      font-size:14px;
+      border-radius:14px;
+    }
+
     .btn:active{
       transform: translateY(1px);
+    }
+
+    .exercise-preview{
+      position: fixed;
+      bottom: 20px;
+      left: 20px;
+      width: 700px;
+      height: 350px;
+      background: rgba(0,0,0,.25);
+      border-radius: 12px;
+      padding: 8px;
+      box-shadow: var(--shadow);
+    }
+
+    .exercise-preview img{
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    .exercise-preview{
+      display: none;
     }
 
     /* ---------------- CAMERA ---------------- */
@@ -165,8 +218,12 @@
 <body>
       <main class="main">
          <header class="top-strip">
-      <h1>Workout Session</h1>
-    </header>
+          <h1>Workout Session</h1>
+          <a href="{{ url_for('home') }}" class="end-btn">
+            End Workout
+          </a>
+        </header>
+
 <div class="content">
 
       <div class="left-panel">
@@ -176,9 +233,13 @@
 
         </div>
 
-          <div class="info-card">
+          <div class="info-card" id ="reps_card">
             <h2>Reps</h2>
           <h3 id="rep_count">0</h3>
+        </div>
+        <div class="info-card" id="timer_card" style="display:none;">
+          <h2>Time Remaining</h2>
+          <h3 id="timer_display">30</h3>
         </div>
         <h1 id="current_state">state</h1>
         </div>
@@ -195,6 +256,9 @@
     <div id="total-rep-percentage" class="total-rep-percentage">
           0%
         </div>
+  <!-- Adding a image to the bottom of the screen amshu -->
+  <div class="exercise-preview">
+    <img id="exercise_gif" src="{{ url_for('static', filename='squats.gif') }}">
   </div>
 
     
@@ -206,7 +270,9 @@
     <script>
         const ding=new Audio("{{url_for('static', filename='repding.mp3')}}");
 
-        const workoutRoutine=[{name: 'squats', target: 2},
+        const workoutRoutine=[{name: 'jumpingjacks',type: 'timer', duration: 30},
+                              {name: 'running', type: 'timer', duration: 30},
+                              {name: 'squats', target: 2},
                               {name: 'lunges', target: 2},
                             ]
 
@@ -218,6 +284,9 @@
         let workoutFinished=false
         let isSwitching = false; // ai lock 
         const bar = document.getElementById("total-rep-percentage");
+        let timerInterval = null;
+        let remainingTime = 0;
+        let statsInterval = null;
 
         function changeExercise(name) {
             fetch('/switch_exercise', {
@@ -228,8 +297,42 @@
             .then(data => {
                 console.log("Switched to: " + name);
                 document.getElementById('exercise_name').innerText = name;
+                document.getElementById('exercise_gif').src = gifMap[name];
             });
         }
+
+        function startTimer(seconds) {
+            clearInterval(timerInterval);
+            remainingTime = seconds;
+
+            document.getElementById('timer_card').style.display = 'block';
+            document.getElementById('reps_card').style.display = 'none';
+            document.getElementById('timer_display').innerText = remainingTime;
+
+            document.getElementById('current_state').innerText = "TIMER";
+
+            timerInterval = setInterval(() => {
+                remainingTime--;
+                document.getElementById('timer_display').innerText = remainingTime;
+
+                if (remainingTime <= 0) {
+                    clearInterval(timerInterval);
+                    document.getElementById('timer_card').style.display = 'none';
+                    moveToNextExercise();
+                }
+            }, 1000);
+        }
+        
+        function applyExerciseUIMode(ex) {
+            if (ex.type === 'timer') {
+                document.getElementById('timer_card').style.display = 'block';
+                document.getElementById('reps_card').style.display = 'none';
+            } else {
+                document.getElementById('timer_card').style.display = 'none';
+                document.getElementById('reps_card').style.display = 'block';
+            }
+        }
+
         function moveToNextExercise() {
             if (isSwitching) return;
             isSwitching = true;
@@ -249,10 +352,35 @@
                     }
                 });
 
+
+            clearInterval(timerInterval);
+            timerInterval = null;
+            
+            // 1. Reset the UI immediately for the user
+            document.getElementById('rep_count').innerText = "0";
+            document.getElementById('timer_display').innerText = "30";
+
+            routineIndex++;
+            if(routineIndex < workoutRoutine.length){
+              const nextExercise = workoutRoutine[routineIndex];
+              changeExercise(nextExercise.name);
+              applyExerciseUIMode(nextExercise);
+              if(nextExercise.type === 'timer'){
+                startTimer(nextExercise.duration);
+              }else{
+                fetch('/reset_stats', { method: 'POST' }).catch(()=>{});
+              }
+            }else{
+              workoutFinished = true;
+              window.location.href = "{{ url_for('workoutcomplete') }}";
+            }
             setTimeout(() => { isSwitching = false; }, 1000);
         }
 
         function updateStats() {
+            const current = workoutRoutine[routineIndex];
+
+            if (current.type === 'timer')return;
             
             fetch('/get_exercise_data')
                 .then(response => response.json())
@@ -278,15 +406,28 @@
                     }
                 })
         }
-        function startSession(){
-          document.getElementById("overlay").style.display='none';
-          ding.play().then(() => {
-            ding.pause();
-            ding.currentTime = 0;
-          }).catch(error => console.log("Audio primed"));
-          const cameraImg = document.querySelector('.camera-box img');
-          cameraImg.style.display = 'block';
-              setInterval(updateStats, 500);
+       
+    function startSession(){
+      document.getElementById("overlay").style.display='none';
+      ding.play().then(() => {
+        ding.pause();
+        ding.currentTime = 0;
+      }).catch(error => console.log("Audio primed"));
+      const cameraImg = document.querySelector('.camera-box img');
+      cameraImg.style.display = 'block';
+      document.querySelector('.exercise-preview').style.display = 'block';
+      const first = workoutRoutine[0];
+          changeExercise(first.name);
+          applyExerciseUIMode(first);
+
+          if (first.type === 'timer') {
+              startTimer(first.duration);
+          } else {
+              fetch('/reset_stats', { method: 'POST' }).catch(()=>{});
+          }
+          if (statsInterval) clearInterval(statsInterval);
+          setInterval(updateStats, 500);
+    }
 
         }
 
@@ -300,7 +441,19 @@
           bar.textContent = "0%";
           document.getElementById('rep_count').innerText = "0";
         };
-    setInterval(updateStats, 300);
+    setInterval(updateStats, 500);
+
+    const gifMap = {
+      squats: "{{ url_for('static', filename='squats.gif') }}",
+      lunges: "{{ url_for('static', filename='lunges.gif') }}",
+      situps: "{{ url_for('static', filename='situps.gif') }}",
+      gluebridges: "{{ url_for('static', filename='glutebridges.gif') }}",
+      jumpingjacks: "{{ url_for('static', filename='jumpinjacks.gif') }}",
+      pushup: "{{ url_for('static', filename='pushup.gif') }}",
+      supermans: "{{ url_for('static', filename='supermans.gif') }}",
+      running: "{{ url_for('static', filename='running.gif') }}",
+    };
+
   </script>
 
 </html>

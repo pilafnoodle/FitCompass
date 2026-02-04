@@ -427,15 +427,46 @@ class LungeController:
             cv2.line(annotated_image, right_hip, right_knee, (0, 255, 0), 2)
         return annotated_image
 
+class RunningState:
+    TIMER = "TIMER"
+
+class RunningController:
+    def __init__(self):
+        self.state = RunningState.TIMER
+        self.count = 0
+
+    def update(self, detection_result, image_shape):
+        return
+
+    def draw(self, image, detection_result):
+        # No extra drawing.
+        return image
+
+class JumpingJackState:
+    TIMER = "TIMER"
+
+class JumpingJacksController:
+    def __init__(self):
+        self.state = JumpingJackState.TIMER
+        self.count = 0
+
+    def update(self, detection_result, image_shape):
+        return
+
+    def draw(self, image, detection_result):
+        return image
+
 sitUpController = SitUpController()
 squatController = SquatController()
 lungeController = LungeController()
+runningController = RunningController()
+jumpingjacksController = JumpingJacksController()
 
 class exerciseManager():
     def __init__(self):
-        self.exercises={"squats": SquatController(), "situps" : SitUpController(), "lunges" : LungeController()}
+        self.exercises={"squats": SquatController(), "situps" : SitUpController(), "lunges" : LungeController(), "running" : RunningController(), "jumpingjacks" : JumpingJacksController()}
     
-        self.currentExercise="squats"
+        self.currentExercise="jumpingjacks"
     def getCurrentExercise(self):
         return self.exercises[self.currentExercise]
     def setCurrentExercise(self,exerciseName):
