@@ -229,7 +229,7 @@
       <div class="left-panel">
         <div class="info-card">
           <h2 id="exercise_label">Current Exercise</h2>
-          <h3 id="exercise_name">Squats</h3>
+          <h3 id="exercise_name">Loading...</h3>
 
         </div>
 
@@ -289,15 +289,15 @@
         let statsInterval = null;
 
         function changeExercise(name) {
-            fetch('/switch_exercise', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ exercise: name })
-            }).then(response => response.json())
-            .then(data => {
-                console.log("Switched to: " + name);
-                document.getElementById('exercise_name').innerText = name;
+            document.getElementById('exercise_name').innerText=name;
+            if (gifMap[name]) {
                 document.getElementById('exercise_gif').src = gifMap[name];
+            }
+
+            return fetch('/switch_exercise', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ exercise: name })
             });
         }
 
@@ -328,6 +328,8 @@
                 document.getElementById('timer_card').style.display = 'block';
                 document.getElementById('reps_card').style.display = 'none';
             } else {
+                clearInterval(timerInterval); 
+                timerInterval = null;
                 document.getElementById('timer_card').style.display = 'none';
                 document.getElementById('reps_card').style.display = 'block';
             }
@@ -337,9 +339,10 @@
             if (isSwitching) return;
             isSwitching = true;
             document.getElementById('rep_count').innerText = "0";
+
+            routineIndex++;
             fetch('/reset_stats', { method: 'POST' })
                 .then(() => {
-                    routineIndex++;
                     if (routineIndex < workoutRoutine.length) {
                         const nextExercise = workoutRoutine[routineIndex].name;
                         lastCount=0;
@@ -352,7 +355,6 @@
                     }
                 });
 
-
             clearInterval(timerInterval);
             timerInterval = null;
             
@@ -360,7 +362,6 @@
             document.getElementById('rep_count').innerText = "0";
             document.getElementById('timer_display').innerText = "30";
 
-            routineIndex++;
             if(routineIndex < workoutRoutine.length){
               const nextExercise = workoutRoutine[routineIndex];
               changeExercise(nextExercise.name);
@@ -441,7 +442,6 @@
           bar.textContent = "0%";
           document.getElementById('rep_count').innerText = "0";
         };
-    setInterval(updateStats, 500);
 
     const gifMap = {
       squats: "{{ url_for('static', filename='squats.gif') }}",

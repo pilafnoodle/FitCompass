@@ -65,11 +65,23 @@ connection.close()
 # Webcam setup
 camera = cv2.VideoCapture(0)
 #global variable for the latest detected frame
-latest_detection = None
+
+# latest_detection = None
+
+loggedInUsers={}
+class User:
+    def __init__ (self,id):
+        self.user_ID = id
+        self.latest_detection = None
+        self.currentExercise= None
+        self.exerciseManager = ExerciseManager()
+        
+
 
 @app.route('/webcam_feed')
 def webcam_feed():
-    return Response(generate_frames(),
+    user_id = session.get('user_id')
+    return Response(generate_frames(user_id),
                     mimetype='multipart/x-mixed-replace; boundary=frame')
 
 #format is anglebetweenlines(endpoint one, vertex, endpoint two)
@@ -462,7 +474,7 @@ lungeController = LungeController()
 runningController = RunningController()
 jumpingjacksController = JumpingJacksController()
 
-class exerciseManager():
+class ExerciseManager():
     def __init__(self):
         self.exercises={"squats": SquatController(), "situps" : SitUpController(), "lunges" : LungeController(), "running" : RunningController(), "jumpingjacks" : JumpingJacksController()}
     
@@ -472,48 +484,54 @@ class exerciseManager():
     def setCurrentExercise(self,exerciseName):
         self.currentExercise=exerciseName
 
-exerciseManager=exerciseManager()
 
 
 
 @app.route('/switch_exercise',methods=["POST"])
 def switch_exercise():
+
+    user_id = session.get('user_id')
+    if not user_id in loggedInUsers:
+        return
+    currentUser= loggedInUsers[user_id]
     data = request.get_json()
     new_exercise = data.get('exercise')
-    exerciseManager.setCurrentExercise(new_exercise)
+    currentUser.exerciseManager.setCurrentExercise(new_exercise)
     return jsonify(status="success", now_doing=new_exercise)
 
 @app.route('/get_exercise_data')
 def get_exercise_data():
-    global latest_detection
-    multiple_detected=False
+    user_id = session.get('user_id')
+    if not user_id in loggedInUsers:
+        return
+    currentUser= loggedInUsers[user_id]
 
-    if latest_detection and latest_detection.pose_landmarks:
-        if len(latest_detection.pose_landmarks) > 1:
-            multiple_detected = True
-
-    currentExercise=exerciseManager.getCurrentExercise()
+    currentExerciseObject=currentUser.exerciseManager.getCurrentExercise()
     return jsonify(
-        currentExercise=exerciseManager.currentExercise,
-        count=currentExercise.count,
-        state=currentExercise.state,
-        multiple_detected=multiple_detected
+        currentExercise=currentUser.exerciseManager.currentExercise,
+        count=currentExerciseObject.count,
+        state=currentExerciseObject.state,
     )
 
 
-def generate_frames():
-    global latest_detection
+def generate_frames(user_id):
+    if not user_id in loggedInUsers:
+        return
+    currentUser= loggedInUsers[user_id]
+
+    global camera
     while True:
+
         success, frame = camera.read()
         if not success:
             break
-        mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=frame)
-        detection_result = detector.detect(mp_image)
-        latest_detection=detection_result    
-        currentExercise = exerciseManager.getCurrentExercise()
-        currentExercise.update(detection_result, frame.shape)
 
-        annotated_image = currentExercise.draw(frame, detection_result)
+        mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=frame)
+        currentUser.latest_detection = detector.detect(mp_image)     
+        currentUser.currentExercise = currentUser.exerciseManager.getCurrentExercise()
+        currentUser.currentExercise.update(currentUser.latest_detection, frame.shape)
+
+        annotated_image = currentUser.currentExercise.draw(frame, currentUser.latest_detection)
         ret, buffer = cv2.imencode('.jpg', annotated_image)
         frame_bytes = buffer.tobytes()
         yield (b'--frame\r\n'
@@ -523,16 +541,22 @@ def generate_frames():
 # Login
 # -------------------------
 
-@app.route('/reset_stats', methods=['POST'])
 def reset_stats():
-    # Get the current active controller (Squat, SitUp, or Lunge)
-    current_exercise = exerciseManager.getCurrentExercise()
+    user_id = session.get('user_id')
+    if user_id not in loggedInUsers:
+        return jsonify(status="error"), 401
+        
+    currentUser = loggedInUsers[user_id]
+    # Fetch the controller instance
+    current_ex_obj = currentUser.exerciseManager.getCurrentExercise()
     
-    # Reset the count and state inside that specific controller instance
-    current_exercise.count = 0
-    current_exercise.state = "IDLE" 
+    current_ex_obj.count = 0
+    current_ex_obj.state = "IDLE" 
     
-    return jsonify({"status": "success", "message": "Counter reset for " + exerciseManager.currentExercise})
+    return jsonify({
+        "status": "success", 
+        "message": f"Counter reset for {currentUser.exerciseManager.currentExercise}"
+    })
 
 @app.route('/', methods=['GET', 'POST'])
 def login():
@@ -549,6 +573,9 @@ def login():
         if user and check_password_hash(user["password"], raw_password):
             session['user_id'] = user["id"]
             session['username'] = username
+
+            loggedInUsers.update({user["id"]: User(user["id"])})
+
             return redirect(url_for('home'))
 
         flash("Invalid username or password")
