@@ -270,7 +270,8 @@
     <script>
         const ding=new Audio("{{url_for('static', filename='repding.mp3')}}");
 
-        const workoutRoutine=[{name: 'jumpingjacks',type: 'timer', duration: 30},
+        const workoutRoutine=[{name: 'pushups', target: 3},
+                              {name: 'jumpingjacks',type: 'timer', duration: 30},
                               {name: 'running', type: 'timer', duration: 30},
                               {name: 'squats', target: 2},
                               {name: 'lunges', target: 2},
@@ -449,7 +450,7 @@
       situps: "{{ url_for('static', filename='situps.gif') }}",
       gluebridges: "{{ url_for('static', filename='glutebridges.gif') }}",
       jumpingjacks: "{{ url_for('static', filename='jumpinjacks.gif') }}",
-      pushup: "{{ url_for('static', filename='pushup.gif') }}",
+      pushups: "{{ url_for('static', filename='pushup.gif') }}",
       supermans: "{{ url_for('static', filename='supermans.gif') }}",
       running: "{{ url_for('static', filename='running.gif') }}",
     };
