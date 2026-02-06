@@ -453,20 +453,68 @@ class JumpingJacksController:
     def update(self, detection_result, image_shape):
         return
 
-    def draw(self, image, detection_result):
+    def draw(self, detection_result, image):
         return image
+
+class GluteBridgeState():
+    IDLE = "IDLE"
+    UP = "UP"
+
+class GluteBridgeController():
+    def __init__(self):
+        self.state = GluteBridgeState.IDLE
+        self.count = 0
+        self.hipAngle = 0
+    def update(self, detection_result, image_shape):
+        if not detection_result or not detection_result.pose_landmarks:
+            return
+        landmarks = detection_result.pose_landmarks[0]
+        pixel_landmarks = landmarks_to_pixels(landmarks, image_shape)
+
+        shoulder = pixel_landmarks[RIGHT_SHOULDER]
+        hip = pixel_landmarks[RIGHT_HIP]
+        knee = pixel_landmarks[RIGHT_KNEE]
+
+        self.hip_angle = angleBetweenLines(shoulder, hip, knee)
+
+        if self.state == GluteBridgeState.IDLE:
+            if self.hip_angle > 165:
+                self.state = GluteBridgeState.UP
+        elif self.state == GluteBridgeState.UP:
+            if self.hip_angle < 140:
+                self.count+=1
+                self.state = GluteBridgeState.IDLE
+    def draw(self,image, detection_result):
+        annotated_image = image.copy()
+        if not detection_result.pose_landmarks:
+            return annotated_image
+        h, w, _ = image.shape
+        for pose_landmarks in detection_result.pose_landmarks:
+            def to_pixel(lm):
+                return int(lm.x * w), int(lm.y * h)
+            
+            shoulder = to_pixel(pose_landmarks[RIGHT_SHOULDER])
+            hip = to_pixel(pose_landmarks[RIGHT_HIP])
+            knee = to_pixel(pose_landmarks[RIGHT_KNEE])
+            
+            color = (0, 255, 0) if self.state == GluteBridgeState.UP else (0, 0, 255)
+            
+            cv2.line(annotated_image, shoulder, hip, color, 4)
+            cv2.line(annotated_image, hip, knee, color, 4)
+        return annotated_image
 
 sitUpController = SitUpController()
 squatController = SquatController()
 lungeController = LungeController()
 runningController = RunningController()
 jumpingjacksController = JumpingJacksController()
+gluteBridgeController = GluteBridgeController()
 
 class exerciseManager():
     def __init__(self):
-        self.exercises={"squats": SquatController(), "situps" : SitUpController(), "lunges" : LungeController(), "running" : RunningController(), "jumpingjacks" : JumpingJacksController()}
+        self.exercises={"squats": SquatController(), "situps" : SitUpController(), "lunges" : LungeController(), "running" : RunningController(), "jumpingjacks" : JumpingJacksController(), "glutebridges" : GluteBridgeController()}
     
-        self.currentExercise="jumpingjacks"
+        self.currentExercise="glutebridges"
     def getCurrentExercise(self):
         return self.exercises[self.currentExercise]
     def setCurrentExercise(self,exerciseName):
