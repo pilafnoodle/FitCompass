@@ -468,17 +468,78 @@ class JumpingJacksController:
     def draw(self, image, detection_result):
         return image
 
+class SupermanState:
+    IDLE = "IDLE"
+    UP = "UP"
+
+class SupermanController:
+    def __init__(self):
+        self.state = SupermanState.IDLE
+        self.count = 0
+        self.angle = 0
+    def update(self,detection_result, image_shape):
+        if not detection_result or not detection_result.pose_landmarks:
+            return
+            
+        landmarks = detection_result.pose_landmarks[0]
+        pixel_landmarks = landmarks_to_pixels(landmarks, image_shape)
+        
+        shoulder = pixel_landmarks[RIGHT_SHOULDER]
+        hip = pixel_landmarks[RIGHT_HIP]
+        knee = pixel_landmarks[RIGHT_KNEE]
+        
+        self.back_angle = angleBetweenLines(shoulder, hip, knee)
+        
+        if self.state == SupermanState.IDLE:
+            if self.back_angle < 165:
+                self.state = SupermanState.UP
+                
+        elif self.state == SupermanState.UP:
+            if self.back_angle > 175:
+                self.count += 1
+                self.state = SupermanState.IDLE
+    def draw(self, image, detection_result):
+        annotated_image = image.copy()
+        if not detection_result.pose_landmarks:
+            return annotated_image
+        h, w, _ = image.shape
+
+        for pose_landmarks in detection_result.pose_landmarks:
+            def to_pixel(lm):
+                return int(lm.x * w), int(lm.y * h)
+            
+            shoulder = to_pixel(pose_landmarks[RIGHT_SHOULDER])
+            hip = to_pixel(pose_landmarks[RIGHT_HIP])
+            knee = to_pixel(pose_landmarks[RIGHT_KNEE])
+            
+            elbow = to_pixel(pose_landmarks[RIGHT_ELBOW])
+            wrist = to_pixel(pose_landmarks[RIGHT_WRIST])
+            ankle = to_pixel(pose_landmarks[RIGHT_HEEL])
+            
+            color = (0, 255, 0)
+            
+            cv2.line(annotated_image, shoulder, hip, color, 4)
+            cv2.line(annotated_image, hip, knee, (255, 0, 0), 4)
+            cv2.line(annotated_image, knee, ankle, (255, 0, 0), 4)
+            
+            cv2.line(annotated_image, shoulder, elbow, color, 4)
+            cv2.line(annotated_image, elbow, wrist, color, 4)
+
+        return annotated_image
+
+
 sitUpController = SitUpController()
 squatController = SquatController()
 lungeController = LungeController()
 runningController = RunningController()
 jumpingjacksController = JumpingJacksController()
+supermansController : SupermanController()
 
 class ExerciseManager():
     def __init__(self):
-        self.exercises={"squats": SquatController(), "situps" : SitUpController(), "lunges" : LungeController(), "running" : RunningController(), "jumpingjacks" : JumpingJacksController()}
+        self.exercises={"squats": SquatController(), "situps" : SitUpController(), "lunges" : LungeController(), "running" : RunningController(), "jumpingjacks" : JumpingJacksController(), "supermans" : SupermanController()}
     
-        self.currentExercise="jumpingjacks"
+        self.currentExercise="supermans"
     def getCurrentExercise(self):
         return self.exercises[self.currentExercise]
     def setCurrentExercise(self,exerciseName):
