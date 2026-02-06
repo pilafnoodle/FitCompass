@@ -447,12 +447,14 @@ class RunningController:
         self.state = RunningState.TIMER
         self.count = 0
 
-    def update(self, detection_result, image_shape):
+    def update(self, detection_result,image_shape):
         return
 
-    def draw(self, image, detection_result):
+    def draw(self, image,detection_result):
+        if image is None:
+            return None
         # No extra drawing.
-        return image
+        return image.copy()
 
 class JumpingJackState:
     TIMER = "TIMER"
@@ -462,11 +464,13 @@ class JumpingJacksController:
         self.state = JumpingJackState.TIMER
         self.count = 0
 
-    def update(self, detection_result, image_shape):
+    def update(self, detection_result,image_shape):
         return
 
-    def draw(self, detection_result, image):
-        return image
+    def draw(self,  image,detection_result):
+        if image is None:
+            return None
+        return image.copy()
 
 class GluteBridgeState():
     IDLE = "IDLE"
@@ -497,6 +501,25 @@ class GluteBridgeController():
                 self.count+=1
                 self.state = GluteBridgeState.IDLE
     def draw(self,image, detection_result):
+        annotated_image = image.copy()
+        if not detection_result.pose_landmarks:
+            return annotated_image
+        h, w, _ = image.shape
+        for pose_landmarks in detection_result.pose_landmarks:
+            def to_pixel(lm):
+                return int(lm.x * w), int(lm.y * h)
+            
+            shoulder = to_pixel(pose_landmarks[RIGHT_SHOULDER])
+            hip = to_pixel(pose_landmarks[RIGHT_HIP])
+            knee = to_pixel(pose_landmarks[RIGHT_KNEE])
+            
+            color = (0, 255, 0) if self.state == GluteBridgeState.UP else (0, 0, 255)
+            
+            cv2.line(annotated_image, shoulder, hip, color, 4)
+            cv2.line(annotated_image, hip, knee, color, 4)
+        return annotated_image
+
+
 class SupermanState:
     IDLE = "IDLE"
     UP = "UP"
@@ -553,11 +576,11 @@ lungeController = LungeController()
 runningController = RunningController()
 jumpingjacksController = JumpingJacksController()
 gluteBridgeController = GluteBridgeController()
-supermansController + SupermanController()
+supermansController = SupermanController()
 
 class ExerciseManager():
     def __init__(self):
-        self.exercises={"squats": SquatController(), "situps" : SitUpController(), "lunges" : LungeController(), "running" : RunningController(), "jumpingjacks" : JumpingJacksController(), "supermans" : SupermanController()}
+        self.exercises={"squats": SquatController(), "situps" : SitUpController(), "lunges" : LungeController(), "running" : RunningController(), "jumpingjacks" : JumpingJacksController(), "supermans" : SupermanController(),"glutebridges" : GluteBridgeController()}
    
         self.currentExercise="supermans"
     def getCurrentExercise(self):
@@ -600,10 +623,14 @@ def generate_frames(user_id):
         return
     currentUser= loggedInUsers[user_id]
 
+    
+
     global camera
     while True:
 
         success, frame = camera.read()
+        if frame is None:
+            continue
         if not success:
             break
 

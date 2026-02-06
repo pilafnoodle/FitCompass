@@ -269,16 +269,16 @@
 
     <script>
         const ding=new Audio("{{url_for('static', filename='repding.mp3')}}");
-
         const workoutRoutine=[{name: 'glutebridges', target: 2},
-                              {name: 'running',type: 'timer', duration: 30},
-                              {name: 'jumpingjacks', type: 'timer', duration: 30},
+                              {name: 'supermans', target: 2},
                               {name: 'squats', target: 2},
                               {name: 'lunges', target: 2},
+                              {name: 'running',type: 'timer', duration: 30},
+                              {name: 'jumpingjacks', type: 'timer', duration: 30},
                             ]
 
         repsCompleted = 0; //this is reps completed across all workouts
-        const totalReps=4;
+        const totalReps=8;
 
         let lastCount=0;
         let routineIndex=0;
