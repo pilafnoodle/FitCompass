@@ -447,12 +447,14 @@ class RunningController:
         self.state = RunningState.TIMER
         self.count = 0
 
-    def update(self, detection_result, image_shape):
+    def update(self, detection_result,image_shape):
         return
 
-    def draw(self, image, detection_result):
+    def draw(self, image,detection_result):
+        if image is None:
+            return None
         # No extra drawing.
-        return image
+        return image.copy()
 
 class JumpingJackState:
     TIMER = "TIMER"
@@ -462,11 +464,111 @@ class JumpingJacksController:
         self.state = JumpingJackState.TIMER
         self.count = 0
 
-    def update(self, detection_result, image_shape):
+    def update(self, detection_result,image_shape):
         return
 
+    def draw(self,  image,detection_result):
+        if image is None:
+            return None
+        return image.copy()
+
+class GluteBridgeState():
+    IDLE = "IDLE"
+    UP = "UP"
+
+class GluteBridgeController():
+    def __init__(self):
+        self.state = GluteBridgeState.IDLE
+        self.count = 0
+        self.hipAngle = 0
+    def update(self, detection_result, image_shape):
+        if not detection_result or not detection_result.pose_landmarks:
+            return
+        landmarks = detection_result.pose_landmarks[0]
+        pixel_landmarks = landmarks_to_pixels(landmarks, image_shape)
+
+        shoulder = pixel_landmarks[RIGHT_SHOULDER]
+        hip = pixel_landmarks[RIGHT_HIP]
+        knee = pixel_landmarks[RIGHT_KNEE]
+
+        self.hip_angle = angleBetweenLines(shoulder, hip, knee)
+
+        if self.state == GluteBridgeState.IDLE:
+            if self.hip_angle > 165:
+                self.state = GluteBridgeState.UP
+        elif self.state == GluteBridgeState.UP:
+            if self.hip_angle < 140:
+                self.count+=1
+                self.state = GluteBridgeState.IDLE
+    def draw(self,image, detection_result):
+        annotated_image = image.copy()
+        if not detection_result.pose_landmarks:
+            return annotated_image
+        h, w, _ = image.shape
+        for pose_landmarks in detection_result.pose_landmarks:
+            def to_pixel(lm):
+                return int(lm.x * w), int(lm.y * h)
+            
+            shoulder = to_pixel(pose_landmarks[RIGHT_SHOULDER])
+            hip = to_pixel(pose_landmarks[RIGHT_HIP])
+            knee = to_pixel(pose_landmarks[RIGHT_KNEE])
+            
+            color = (0, 255, 0) if self.state == GluteBridgeState.UP else (0, 0, 255)
+            
+            cv2.line(annotated_image, shoulder, hip, color, 4)
+            cv2.line(annotated_image, hip, knee, color, 4)
+        return annotated_image
+
+
+class SupermanState:
+    IDLE = "IDLE"
+    UP = "UP"
+
+class SupermanController:
+    def __init__(self):
+        self.state = SupermanState.IDLE
+        self.count = 0
+        self.angle = 0
+    def update(self,detection_result, image_shape):
+        if not detection_result or not detection_result.pose_landmarks:
+            return
+            
+        landmarks = detection_result.pose_landmarks[0]
+        pixel_landmarks = landmarks_to_pixels(landmarks, image_shape)
+        
+        shoulder = pixel_landmarks[RIGHT_SHOULDER]
+        hip = pixel_landmarks[RIGHT_HIP]
+        knee = pixel_landmarks[RIGHT_KNEE]
+        
+        self.back_angle = angleBetweenLines(shoulder, hip, knee)
+        
+        if self.state == SupermanState.IDLE:
+            if self.back_angle < 165:
+                self.state = SupermanState.UP
+                
+        elif self.state == SupermanState.UP:
+            if self.back_angle > 175:
+                self.count += 1
+                self.state = SupermanState.IDLE
     def draw(self, image, detection_result):
-        return image
+        annotated_image = image.copy()
+        if not detection_result.pose_landmarks:
+            return annotated_image
+        h, w, _ = image.shape
+
+        for pose_landmarks in detection_result.pose_landmarks:
+            def to_pixel(lm):
+                return int(lm.x * w), int(lm.y * h)
+            
+            shoulder = to_pixel(pose_landmarks[RIGHT_SHOULDER])
+            hip = to_pixel(pose_landmarks[RIGHT_HIP])
+            knee = to_pixel(pose_landmarks[RIGHT_KNEE])
+            
+            color = (0, 255, 0) if self.state == GluteBridgeState.UP else (0, 0, 255)
+            
+            cv2.line(annotated_image, shoulder, hip, color, 4)
+            cv2.line(annotated_image, hip, knee, color, 4)
+        return annotated_image
 
 class PushUpState:
     IDLE = "IDLE"
@@ -574,10 +676,14 @@ def generate_frames(user_id):
         return
     currentUser= loggedInUsers[user_id]
 
+    
+
     global camera
     while True:
 
         success, frame = camera.read()
+        if frame is None:
+            continue
         if not success:
             break
 
