@@ -481,6 +481,8 @@ class GluteBridgeController():
         self.state = GluteBridgeState.IDLE
         self.count = 0
         self.hipAngle = 0
+        self.kneeAngle = 0
+        self.is_lying_down = False
     def update(self, detection_result, image_shape):
         if not detection_result or not detection_result.pose_landmarks:
             return
@@ -490,8 +492,22 @@ class GluteBridgeController():
         shoulder = pixel_landmarks[RIGHT_SHOULDER]
         hip = pixel_landmarks[RIGHT_HIP]
         knee = pixel_landmarks[RIGHT_KNEE]
+        ankle = pixel_landmarks[RIGHT_HEEL]
 
+        dx = abs(hip[0] - shoulder[0])
+        dy = abs(hip[1] - shoulder[1])
+
+        if dy > dx:
+            self.is_lying_down = False
+            return
+        else:
+            self.is_lying_down = True
+
+        self.knee_angle = angleBetweenLines(hip, knee, ankle)
         self.hip_angle = angleBetweenLines(shoulder, hip, knee)
+
+        if self.knee_angle > 135:
+            return
 
         if self.state == GluteBridgeState.IDLE:
             if self.hip_angle > 165:
@@ -500,6 +516,7 @@ class GluteBridgeController():
             if self.hip_angle < 140:
                 self.count+=1
                 self.state = GluteBridgeState.IDLE
+
     def draw(self,image, detection_result):
         annotated_image = image.copy()
         if not detection_result.pose_landmarks:
@@ -508,15 +525,20 @@ class GluteBridgeController():
         for pose_landmarks in detection_result.pose_landmarks:
             def to_pixel(lm):
                 return int(lm.x * w), int(lm.y * h)
-            
+
             shoulder = to_pixel(pose_landmarks[RIGHT_SHOULDER])
             hip = to_pixel(pose_landmarks[RIGHT_HIP])
             knee = to_pixel(pose_landmarks[RIGHT_KNEE])
+            ankle = to_pixel(pose_landmarks[RIGHT_HEEL])
+
+            cv2.line(annotated_image, shoulder, hip, (0, 255, 0), 4)
+            cv2.line(annotated_image, hip, knee, (0, 0, 255), 4)
+            cv2.line(annotated_image, knee, ankle, (255, 0, 0), 4)
             
-            color = (0, 255, 0) if self.state == GluteBridgeState.UP else (0, 0, 255)
+            cv2.circle(annotated_image, hip, 6, (255, 255, 255), -1)
+            cv2.circle(annotated_image, knee, 6, (255, 255, 255), -1)
+            cv2.circle(annotated_image, ankle, 6, (0, 255, 255), -1)
             
-            cv2.line(annotated_image, shoulder, hip, color, 4)
-            cv2.line(annotated_image, hip, knee, color, 4)
         return annotated_image
 
 
