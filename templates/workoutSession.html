@@ -269,6 +269,7 @@
 
     <script>
         const ding=new Audio("{{url_for('static', filename='repding.mp3')}}");
+        const set_complete=new Audio("{{url_for('static', filename='set_complete.mp3')}}");
 
         const workoutRoutine=[{name: 'pushups', target: 3},
                               {name: 'jumpingjacks',type: 'timer', duration: 30},
@@ -402,14 +403,19 @@
   
                       lastCount=data.count;
                       repsCompleted += diff;
-                      ding.play();
+                      //ding.play();
+                      if (repsCompleted==goalCount){
+                        set_complete.play();
+                      }else if(repsCompleted<goalCount){
+                        ding.play();
+                      }
                     }
-
                     if(data.count>=goalCount){
                         moveToNextExercise()
                     }
                 })
         }
+        
        
     function startSession(){
       document.getElementById("overlay").style.display='none';

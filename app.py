@@ -58,8 +58,6 @@ CREATE TABLE IF NOT EXISTS UserLogins(
 
 connection.commit()
 
-
-
 connection.close()
 
 # Webcam setup
