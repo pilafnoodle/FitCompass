@@ -337,6 +337,7 @@
 
         function moveToNextExercise() {
             if (isSwitching) return;
+            nextLevel.play();
             isSwitching = true;
             document.getElementById('rep_count').innerText = "0";
 
