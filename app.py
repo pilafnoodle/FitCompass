@@ -52,9 +52,14 @@ CREATE TABLE IF NOT EXISTS UserLogins(
     goal TEXT,
     goal_other TEXT,
     workouts_per_week INTEGER,
-    body_part TEXT
+    body_part TEXT,
+    coins INTEGER DEFAULT 1000,
+    history TEXT DEFAULT '[]',
+    outfits TEXT DEFAULT '[]',
+    current_workout TEXT
 )
 """)
+#we can use json.dump() and json.loads for the list in hisotry and outfits
 
 connection.commit()
 

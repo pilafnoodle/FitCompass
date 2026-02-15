@@ -114,24 +114,6 @@
       gap:16px;
     }
 
-    .progress{
-      background:white;
-      border-radius:10px;
-      height:30px;
-      width:360px;
-      overflow:hidden;
-    }
-
-    .progress-fill{
-      height:100%;
-      background:var(--btn-green);
-      display:flex;
-      align-items:center;
-      padding-left:10px;
-      color:#000;
-      font-weight:bold;
-    }
-
     .points{
       background:var(--btn-green);
       padding:10px 16px;
@@ -228,12 +210,6 @@
     </div>
 
     <div class="top-row">
-      <div class="progress">
-        <div class="progress-fill" style="width: {{ goal_percent }}%;">
-          {{ goal_percent }}%
-        </div>
-      </div>
-
       <div class="points">
         points: {{ points }}
       </div>

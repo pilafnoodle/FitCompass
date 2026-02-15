@@ -269,9 +269,9 @@
 
     <script>
         const ding=new Audio("{{url_for('static', filename='repding.mp3')}}");
-
-        const workoutRoutine=[{name: 'jumpingjacks',type: 'timer', duration: 30},
-                              {name: 'running', type: 'timer', duration: 30},
+        //changed the timer to 3 second to make testing easier - Amshu (please change back if I forgot and already merged to main and sry and thank you)
+        const workoutRoutine=[{name: 'jumpingjacks',type: 'timer', duration: 3},
+                              {name: 'running', type: 'timer', duration: 3},
                               {name: 'squats', target: 2},
                               {name: 'lunges', target: 2},
                             ]
