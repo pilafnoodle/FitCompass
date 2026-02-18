@@ -269,6 +269,7 @@
 
     <script>
         const ding=new Audio("{{url_for('static', filename='repding.mp3')}}");
+        const swapex=new Audio("{{url_for('static', filename='nextLevel.mp3')}}");
         //changed the timer to 3 second to make testing easier - Amshu (please change back if I forgot and already merged to main and sry and thank you)
         const workoutRoutine=[{name: 'jumpingjacks',type: 'timer', duration: 3},
                               {name: 'running', type: 'timer', duration: 3},
@@ -337,7 +338,7 @@
 
         function moveToNextExercise() {
             if (isSwitching) return;
-            nextLevel.play();
+            swapex.play();
             isSwitching = true;
             document.getElementById('rep_count').innerText = "0";
 
