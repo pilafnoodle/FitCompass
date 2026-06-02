@@ -1103,28 +1103,29 @@ def login():
         username = request.form['username']
         raw_password = request.form['password']
 
+        if username == 'admin' and raw_password == 'admin':
+            session['user_id'] = 0
+            session['username'] = 'admin'
+            session['is_admin'] = True
+            return redirect(url_for('admin_dashboard'))
+
         conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute("SELECT id, password FROM UserLogins WHERE username=?", (username,))
         user = cursor.fetchone()
         conn.close()
-
         if user and check_password_hash(user["password"], raw_password):
             session['user_id'] = user["id"]
             session['username'] = username
-
             loggedInUsers.update({user["id"]: User(user["id"])})
-
             return redirect(url_for('home'))
-
         flash("Invalid username or password")
         return redirect(url_for('login'))
-
     return render_template('login.html')
 
 def send_fit_email(recipient_email, subject, html_content):
     sender_email = "fitcompass8@gmail.com"
-    sender_password = "pbfp hulf zrvi qumq" # Use Google App Password
+    sender_password = "pbfp hulf zrvi qumq" 
     
     msg = MIMEMultipart()
     msg['Subject'] = subject
@@ -1947,6 +1948,273 @@ def submit_review():
     reviews_collection.insert_one(review_document)
 
     return jsonify({"status": "success", "message": "Review submitted successfully!"}), 200
+
+OUTFIT_CATALOG = {
+    "Business": 0,
+    "Casual":   500,
+    "Athlete":  750,
+    "Formal":   1000,
+}
+
+def admin_required(f):
+    from functools import wraps
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not session.get("is_admin"):
+            flash("Admin access required.")
+            return redirect(url_for("login"))
+        return f(*args, **kwargs)
+    return decorated
+
+
+@app.route("/admin")
+@admin_required
+def admin_dashboard():
+    conn = get_db_connection()
+    cur  = conn.cursor()
+
+    cur.execute("SELECT COUNT(*) AS cnt FROM UserLogins")
+    total_users = cur.fetchone()["cnt"]
+
+    cur.execute("SELECT COALESCE(SUM(coins),0) AS s FROM UserLogins")
+    total_coins = cur.fetchone()["s"]
+
+    cur.execute("SELECT COALESCE(SUM(current_workout),0) AS s FROM UserLogins")
+    total_workouts = cur.fetchone()["s"]
+
+    cur.execute("SELECT COUNT(*) AS cnt FROM UserOutfits")
+    total_outfits = cur.fetchone()["cnt"]
+
+    cur.execute("""
+        SELECT id, username, email, goal, workouts_per_week,
+               body_part, coins, current_workout, equipped_outfit
+        FROM UserLogins ORDER BY id
+    """)
+    users = [dict(r) for r in cur.fetchall()]
+
+    for u in users:
+        cur.execute(
+            "SELECT outfit_name FROM UserOutfits WHERE user_id=?", (u["id"],)
+        )
+        u["outfits"] = [r["outfit_name"] for r in cur.fetchall()]
+
+    conn.close()
+
+    return render_template(
+        "admin.html",
+        total_users=total_users,
+        total_coins=total_coins,
+        total_workouts=total_workouts,
+        total_outfits=total_outfits,
+        users=users,
+        outfit_catalog=OUTFIT_CATALOG,
+        exercises={
+            "upper_body": ["Push-ups", "V Pushups", "Inverted Rows", "Pull-ups"],
+            "lower_body": ["Squats", "Lunges", "Glute Bridges", "Calf Raises"],
+            "core":       ["Sit-ups", "Plank", "Supermans"],
+            "cardio":     ["Jumping Jacks", "Jogging in Place", "Running",
+                           "Jump Rope", "Burpees"],
+        },
+    )
+
+@app.route("/admin/add_user", methods=["POST"])
+@admin_required
+def admin_add_user():
+    username = request.form["username"].strip()
+    email    = request.form["email"].strip()
+    password = generate_password_hash(request.form["password"])
+    coins    = int(request.form.get("coins", 1000))
+    goal     = request.form.get("goal", "").strip() or None
+
+    try:
+        conn = get_db_connection()
+        cur  = conn.cursor()
+        cur.execute(
+            """INSERT INTO UserLogins
+               (username, email, password, coins, goal, history, current_workout)
+               VALUES (?, ?, ?, ?, ?, '[]', 0)""",
+            (username, email, password, coins, goal),
+        )
+        conn.commit()
+        conn.close()
+        flash(f"User '{username}' created.", "success")
+    except Exception as e:
+        flash(f"Error creating user: {e}", "danger")
+
+    return redirect(url_for("admin_dashboard"))
+
+@app.route("/admin/edit_user/<int:uid>", methods=["POST"])
+@admin_required
+def admin_edit_user(uid):
+    username = request.form["username"].strip()
+    email    = request.form["email"].strip()
+    coins    = int(request.form.get("coins", 0))
+    goal     = request.form.get("goal", "").strip() or None
+    wpw      = request.form.get("workouts_per_week", "").strip()
+    body     = request.form.get("body_part", "").strip() or None
+    workouts_per_week = int(wpw) if wpw.isdigit() else None
+
+    new_pw = request.form.get("new_password", "").strip()
+
+    conn = get_db_connection()
+    cur  = conn.cursor()
+
+    if new_pw:
+        cur.execute(
+            """UPDATE UserLogins
+               SET username=?, email=?, coins=?, goal=?,
+                   workouts_per_week=?, body_part=?, password=?
+               WHERE id=?""",
+            (username, email, coins, goal,
+             workouts_per_week, body, generate_password_hash(new_pw), uid),
+        )
+    else:
+        cur.execute(
+            """UPDATE UserLogins
+               SET username=?, email=?, coins=?, goal=?,
+                   workouts_per_week=?, body_part=?
+               WHERE id=?""",
+            (username, email, coins, goal, workouts_per_week, body, uid),
+        )
+
+    conn.commit()
+    conn.close()
+    flash(f"User #{uid} updated.", "success")
+    return redirect(url_for("admin_dashboard"))
+
+@app.route("/admin/delete_user/<int:uid>", methods=["POST"])
+@admin_required
+def admin_delete_user(uid):
+    conn = get_db_connection()
+    cur  = conn.cursor()
+    cur.execute("DELETE FROM UserOutfits WHERE user_id=?", (uid,))
+    cur.execute("DELETE FROM UserLogins  WHERE id=?",      (uid,))
+    conn.commit()
+    conn.close()
+    flash(f"User #{uid} deleted.", "success")
+    return redirect(url_for("admin_dashboard"))
+
+@app.route("/admin/adjust_coins/<int:uid>", methods=["POST"])
+@admin_required
+def admin_adjust_coins(uid):
+    amount = int(request.form.get("amount", 0))
+    conn = get_db_connection()
+    cur  = conn.cursor()
+    cur.execute(
+        "UPDATE UserLogins SET coins = MAX(0, coins + ?) WHERE id=?",
+        (amount, uid),
+    )
+    conn.commit()
+    conn.close()
+    flash(f"Coins adjusted by {amount:+d} for user #{uid}.", "success")
+    return redirect(url_for("admin_dashboard"))
+
+@app.route("/admin/grant_outfit/<int:uid>", methods=["POST"])
+@admin_required
+def admin_grant_outfit(uid):
+    outfit = request.form["outfit"]
+    conn = get_db_connection()
+    cur  = conn.cursor()
+    cur.execute(
+        "SELECT 1 FROM UserOutfits WHERE user_id=? AND outfit_name=?",
+        (uid, outfit),
+    )
+    if not cur.fetchone():
+        cur.execute(
+            "INSERT INTO UserOutfits (user_id, outfit_name) VALUES (?,?)",
+            (uid, outfit),
+        )
+        conn.commit()
+        flash(f"Outfit '{outfit}' granted to user #{uid}.", "success")
+    else:
+        flash(f"User #{uid} already owns '{outfit}'.", "warning")
+    conn.close()
+    return redirect(url_for("admin_dashboard"))
+
+@app.route("/admin/revoke_outfit/<int:uid>", methods=["POST"])
+@admin_required
+def admin_revoke_outfit(uid):
+    outfit = request.form["outfit"]
+    conn = get_db_connection()
+    cur  = conn.cursor()
+    cur.execute(
+        "DELETE FROM UserOutfits WHERE user_id=? AND outfit_name=?",
+        (uid, outfit),
+    )
+    conn.commit()
+    conn.close()
+    flash(f"Outfit '{outfit}' revoked from user #{uid}.", "success")
+    return redirect(url_for("admin_dashboard"))
+
+@app.route("/admin/update_catalog", methods=["POST"])
+@admin_required
+def admin_update_catalog():
+    outfit    = request.form["outfit"]
+    new_price = int(request.form["price"])
+    if outfit in OUTFIT_CATALOG:
+        OUTFIT_CATALOG[outfit] = new_price
+        flash(f"Price for '{outfit}' updated to {new_price} coins.", "success")
+    else:
+        flash("Outfit not found in catalog.", "danger")
+    return redirect(url_for("admin_dashboard"))
+
+@app.route("/admin/add_outfit", methods=["POST"])
+@admin_required
+def admin_add_outfit():
+    name  = request.form["name"].strip()
+    price = int(request.form["price"])
+    if not name:
+        flash("Outfit name cannot be empty.", "danger")
+    elif name in OUTFIT_CATALOG:
+        flash(f"'{name}' already exists in catalog.", "warning")
+    else:
+        OUTFIT_CATALOG[name] = price
+        flash(f"Outfit '{name}' added to catalog at {price} coins.", "success")
+    return redirect(url_for("admin_dashboard"))
+
+@app.route("/admin/remove_outfit", methods=["POST"])
+@admin_required
+def admin_remove_outfit():
+    outfit = request.form["outfit"]
+    if outfit in OUTFIT_CATALOG:
+        del OUTFIT_CATALOG[outfit]
+        flash(f"Outfit '{outfit}' removed from catalog.", "success")
+    else:
+        flash("Outfit not found.", "danger")
+    return redirect(url_for("admin_dashboard"))
+
+@app.route("/admin/reset_workout_count/<int:uid>", methods=["POST"])
+@admin_required
+def admin_reset_workout_count(uid):
+    conn = get_db_connection()
+    cur  = conn.cursor()
+    cur.execute("UPDATE UserLogins SET current_workout=0 WHERE id=?", (uid,))
+    conn.commit()
+    conn.close()
+    flash(f"Workout count reset for user #{uid}.", "success")
+    return redirect(url_for("admin_dashboard"))
+
+@app.route("/admin/danger/reset_all_coins", methods=["POST"])
+@admin_required
+def admin_reset_all_coins():
+    conn = get_db_connection()
+    cur  = conn.cursor()
+    cur.execute("UPDATE UserLogins SET coins = 1000")
+    conn.commit()
+    conn.close()
+    flash("All user coin balances reset to 1,000.", "success")
+    return redirect(url_for("admin_dashboard"))
+
+@app.route("/admin/danger/clear_all_history", methods=["POST"])
+@admin_required
+def admin_clear_all_history():
+    conn = get_db_connection()
+    cur  = conn.cursor()
+    cur.execute("UPDATE UserLogins SET current_workout = 0, history = '[]'")
+    conn.commit()
+    conn.close()
+    flash("All workout history cleared.", "success")
+    return redirect(url_for("admin_dashboard"))
 
 if __name__ == "__main__":
     app.run(debug=True)
