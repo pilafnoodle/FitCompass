@@ -29,6 +29,8 @@ mongo_client = MongoClient(mongo_uri)
 mongo_db = mongo_client["FitCompassDB"]
 comments_collection = mongo_db["comments"]
 reviews_collection = mongo_db["workout_reviews"]
+friends_collection = mongo_db["friends"]
+messages_collection = mongo_db["messages"]
 
 from email.mime.text import MIMEText
 from email.mime.image import MIMEImage
@@ -1947,6 +1949,115 @@ def submit_review():
     reviews_collection.insert_one(review_document)
 
     return jsonify({"status": "success", "message": "Review submitted successfully!"}), 200
+
+@app.route('/add_friend', methods=['POST'])
+def add_friend():
+    if 'username' not in session:
+        return jsonify({"error": "Not logged in"}), 401
+    
+    data = request.get_json()
+    friend_username = data.get("friend_username", "").strip()
+    current_user = session['username']
+    
+    # Basic validation
+    if not friend_username or friend_username.lower() == current_user.lower():
+        return jsonify({"error": "Invalid username."}), 400
+        
+    # Check if they are already friends
+    existing_friendship = friends_collection.find_one({
+        "$or": [
+            {"user1": current_user, "user2": friend_username},
+            {"user1": friend_username, "user2": current_user}
+        ]
+    })
+    
+    if existing_friendship:
+        return jsonify({"error": "You are already friends!"}), 400
+        
+    # Create the friendship document in MongoDB
+    friends_collection.insert_one({
+        "user1": current_user,
+        "user2": friend_username,
+        "status": "friends" # Keeping it simple: auto-accept for now!
+    })
+    
+    return jsonify({"success": True, "message": f"You are now friends with {friend_username}!"})
+
+@app.route('/get_friends', methods=['GET'])
+def get_friends():
+    if 'username' not in session:
+        return jsonify({"error": "Not logged in"}), 401
+        
+    current_user = session['username']
+    
+    # Ask MongoDB for any document where the current user is user1 OR user2
+    friend_docs = friends_collection.find({
+        "$or": [{"user1": current_user}, {"user2": current_user}]
+    })
+    
+    friends_list = []
+    for doc in friend_docs:
+        # If I am user1, my friend is user2. If I am user2, my friend is user1.
+        friend_name = doc["user2"] if doc["user1"] == current_user else doc["user1"]
+        friends_list.append({"username": friend_name})
+        
+    return jsonify(friends_list)
+
+@app.route('/inbox')
+def inbox():
+    if 'username' not in session:
+        return redirect(url_for('login'))
+    return render_template('inbox.html', username=session['username'])
+
+@app.route('/send_message', methods=['POST'])
+def send_message():
+    if 'username' not in session:
+        return jsonify({"error": "Not logged in"}), 401
+        
+    data = request.get_json()
+    receiver = data.get("receiver")
+    message_text = data.get("message")
+    
+    if not receiver or not message_text:
+        return jsonify({"error": "Missing data"}), 400
+        
+    message_doc = {
+        "sender": session['username'],
+        "receiver": receiver,
+        "message": message_text,
+        "timestamp": datetime.now().strftime("%I:%M %p") # e.g., "10:30 AM"
+    }
+    
+    messages_collection.insert_one(message_doc)
+    return jsonify({"success": True})
+
+@app.route('/get_conversation/<friend_username>', methods=['GET'])
+def get_conversation(friend_username):
+    if 'username' not in session:
+        return jsonify({"error": "Not logged in"}), 401
+        
+    current_user = session['username']
+    
+    # Ask MongoDB for messages where I am the sender and they are the receiver, OR vice versa
+    query = {
+        "$or": [
+            {"sender": current_user, "receiver": friend_username},
+            {"sender": friend_username, "receiver": current_user}
+        ]
+    }
+    
+    # Sort chronologically by MongoDB's automatic _id
+    messages = list(messages_collection.find(query).sort("_id", 1))
+    
+    chat_history = []
+    for msg in messages:
+        chat_history.append({
+            "sender": msg["sender"],
+            "message": msg["message"],
+            "timestamp": msg.get("timestamp", "")
+        })
+        
+    return jsonify(chat_history)
 
 if __name__ == "__main__":
     app.run(debug=True)
