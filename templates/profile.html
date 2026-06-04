@@ -79,7 +79,6 @@ body{
   color:white;
 }
 
-
 .main{
   flex:1;
   background:var(--bg-main);
@@ -97,8 +96,8 @@ body{
   display:flex;
   gap:30px;
   flex-wrap:wrap;
+  align-items: flex-start;
 }
-
 
 .profile-card{
   background:var(--card);
@@ -112,7 +111,7 @@ body{
 .profile-pic{
   width:150px;
   height:200px;
-  border-radius:0; /* makes it square instead of circle */
+  border-radius:0; 
   background:rgba(0,0,0,.15);
   display:flex;
   align-items:center;
@@ -140,7 +139,6 @@ body{
 .profile-info p{
   margin:8px 0;
 }
-
 
 .stats-card{
   background:var(--card);
@@ -173,19 +171,14 @@ body{
   margin-top:18px;
   width:100%;
   padding:12px;
-
   border:none;
   border-radius:10px;
-
   background:var(--btn-green);
   color:var(--text-dark);
-
   font-family:var(--font);
   font-size:15px;
   font-weight:bold;
-
   cursor:pointer;
-
   box-shadow:0 4px 12px rgba(0,0,0,.15);
   transition:all 0.2s ease;
 }
@@ -199,12 +192,85 @@ body{
 .edit-btn:active{
   transform:scale(0.98);
 }
+
+/* --- FRIEND SYSTEM CSS --- */
+.friends-card {
+  background: var(--card);
+  color: black;
+  border-radius: 12px;
+  padding: 20px;
+  flex: 1;
+  min-width: 300px;
+  box-shadow: var(--shadow);
+}
+
+.friend-search {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.friend-search input {
+  flex: 1;
+  padding: 10px;
+  border-radius: 8px;
+  border: none;
+  font-family: var(--font);
+}
+
+.friend-search button {
+  padding: 10px 15px;
+  border: none;
+  border-radius: 8px;
+  background: var(--bg-main);
+  color: white;
+  font-family: var(--font);
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.friend-search button:hover {
+  filter: brightness(1.2);
+}
+
+.friend-msg {
+  font-size: 13px;
+  margin-bottom: 15px;
+  min-height: 18px;
+  font-weight: bold;
+}
+
+.friends-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.friend-item {
+  background: rgba(255, 255, 255, 0.6);
+  padding: 10px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.friend-avatar-placeholder {
+  width: 35px;
+  height: 35px;
+  background: rgba(0,0,0,0.1);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  color: var(--text-dark);
+}
 </style>
 </head>
 
 <body>
 <div class="app">
-
 
 <aside class="sidebar">
   <div class="sidebar-title">FitCompass</div>
@@ -215,13 +281,13 @@ body{
       <button onclick="location.href='{{ url_for('history') }}'">History</button>
       <button onclick="location.href='{{ url_for('library') }}'">Library</button>
       <button onclick="location.href='{{ url_for('shop') }}'">Shop</button>
+      <button onclick="location.href='{{ url_for('inbox') }}'">Inbox</button>
   </div>
 
   <div class="logout">
     <button onclick="location.href='{{ url_for('logout') }}'">Log Out</button>
   </div>
 </aside>
-
 
 <main class="main">
 
@@ -230,26 +296,17 @@ body{
   </div>
 
   <div class="profile-container">
-
    
     <div class="profile-card">
       <div class="profile-pic">
- <div class="profile-pic">
-  <div class="michalis-layers">
-
-    <img src="{{ url_for('static', filename='michalis/template.png') }}" alt="body">
-
-    <img src="{{ url_for('static', filename='michalis/low arms.png') }}" alt="arms">
-
-    <img src="{{ url_for('static', filename='michalis/slightsmile.png') }}" alt="face">
-
-    <img src="{{ url_for('static', filename='outfits/low arms/' + (equipped if equipped else 'business') + ' low arms.png') }}" alt="sleeves">
-
-    <img src="{{ url_for('static', filename='outfits/torso/' + (equipped if equipped else 'business') + ' torso.png') }}" alt="torso">
-
-  </div>
-</div>
-</div>
+        <div class="michalis-layers">
+          <img src="{{ url_for('static', filename='michalis/template.png') }}" alt="body">
+          <img src="{{ url_for('static', filename='michalis/low arms.png') }}" alt="arms">
+          <img src="{{ url_for('static', filename='michalis/slightsmile.png') }}" alt="face">
+          <img src="{{ url_for('static', filename='outfits/low arms/' + (equipped if equipped else 'business') + ' low arms.png') }}" alt="sleeves">
+          <img src="{{ url_for('static', filename='outfits/torso/' + (equipped if equipped else 'business') + ' torso.png') }}" alt="torso">
+        </div>
+      </div>
 
       <div class="profile-info">
         <p><strong>Username:</strong> {{ username }}</p>
@@ -260,28 +317,107 @@ body{
       </div>
 
       <button class="edit-btn" onclick="location.href='{{ url_for('profileEdit') }}'">
-      Edit Profile
-    </button>
+        Edit Profile
+      </button>
     </div>
 
-    
     <div class="stats-card">
       <h3>Progress Stats</h3>
-
       <div class="stat">
         <p>Weekly Goal Completion ({{ goal_percent }}%)</p>
         <div class="stat-bar">
           <div class="stat-fill" style="width: {{ goal_percent }}%;"></div>
         </div>
       </div>
+    </div>
 
+    <div class="friends-card">
+      <h3>My Friends</h3>
       
+      <div class="friend-search">
+        <input type="text" id="friendInput" placeholder="Enter username...">
+        <button onclick="addFriend()">Add</button>
+      </div>
+      <div id="friendMsg" class="friend-msg"></div>
 
+      <div class="friends-list" id="friendsList">
+        </div>
     </div>
 
   </div>
-
 </main>
 </div>
+
+<script>
+  async function loadFriends() {
+    try {
+      const response = await fetch('/get_friends');
+      const friends = await response.json();
+      const listDiv = document.getElementById('friendsList');
+      listDiv.innerHTML = '';
+
+      if (friends.error) {
+        listDiv.innerHTML = '<p>Error loading friends.</p>';
+        return;
+      }
+
+      if (friends.length === 0) {
+        listDiv.innerHTML = '<p style="color: #666; font-style: italic;">No friends added yet. Search for a username above!</p>';
+        return;
+      }
+
+      friends.forEach(f => {
+        // Grab the first letter of their username for the placeholder avatar
+        const initial = f.username.charAt(0).toUpperCase();
+        
+        listDiv.innerHTML += `
+          <div class="friend-item">
+            <div class="friend-avatar-placeholder">${initial}</div>
+            <strong>${f.username}</strong>
+          </div>
+        `;
+      });
+    } catch (error) {
+      console.error("Failed to fetch friends:", error);
+    }
+  }
+
+  async function addFriend() {
+    const input = document.getElementById('friendInput');
+    const msgDiv = document.getElementById('friendMsg');
+    const friendUsername = input.value.trim();
+
+    if (!friendUsername) return;
+
+    try {
+      const response = await fetch('/add_friend', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ friend_username: friendUsername })
+      });
+      
+      const result = await response.json();
+
+      if (response.ok) {
+        msgDiv.style.color = '#1f4d69'; // Success color
+        msgDiv.innerText = result.message;
+        input.value = ''; // clear the box
+        loadFriends(); // Refresh the list instantly!
+      } else {
+        msgDiv.style.color = '#d83a4a'; // Error color (red)
+        msgDiv.innerText = result.error || "Could not add friend.";
+      }
+    } catch (error) {
+      msgDiv.style.color = '#d83a4a';
+      msgDiv.innerText = "Server error communicating with database.";
+    }
+  }
+
+  // Load the friends list automatically when the page opens
+  document.addEventListener('DOMContentLoaded', () => {
+    loadFriends();
+  });
+</script>
+
 </body>
 </html>

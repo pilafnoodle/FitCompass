@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FitCompass - Inbox</title>
+
+<style>
+:root{
+  --bg-main:#1f4d69;
+  --bg-sidebar:#d8eff4;
+  --btn-green:#a9d99b;
+  --btn-red:#d83a4a;
+  --card:#d8eff4;
+  --text-dark:#0f1a1f;
+  --shadow:0 10px 30px rgba(0,0,0,.18);
+  --font:ui-monospace, Menlo, Consolas, monospace;
+}
+
+*{ box-sizing:border-box; }
+
+body{
+  margin:0;
+  font-family:var(--font);
+  background:#0f2330;
+  color:white;
+  min-height:100vh;
+}
+
+.app{ display:flex; height:100vh; }
+
+/* Sidebar */
+.sidebar{
+  width:260px;
+  background:var(--bg-sidebar);
+  color:var(--text-dark);
+  display:flex;
+  flex-direction:column;
+  padding:18px 14px;
+  border-right:3px solid rgba(0,0,0,.08);
+}
+
+.sidebar-title{ font-size:20px; margin-bottom:10px; }
+
+.nav{ display:flex; flex-direction:column; gap:10px; flex:1; }
+
+.nav button{
+  border:none; border-radius:10px; padding:12px;
+  background:white; font-family:var(--font);
+  cursor:pointer; text-align:left; box-shadow:0 4px 10px rgba(0,0,0,.08);
+}
+.nav button:hover{ background:var(--btn-green); }
+
+.logout button{
+  border:none; border-radius:10px; padding:14px;
+  background:var(--btn-red); font-family:var(--font);
+  cursor:pointer; color:white; width: 100%;
+}
+
+/* Main Inbox Area */
+.main{
+  flex:1;
+  background:var(--bg-main);
+  padding:22px;
+  display: flex;
+  flex-direction: column;
+}
+
+.banner{
+  background:rgba(255,255,255,.12);
+  padding:14px;
+  border-radius:12px;
+  margin-bottom:20px;
+}
+
+.inbox-container {
+  display: flex;
+  gap: 20px;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* Left: Friends List */
+.friends-panel {
+  width: 250px;
+  background: var(--card);
+  border-radius: 12px;
+  padding: 15px;
+  color: var(--text-dark);
+  overflow-y: auto;
+  box-shadow: var(--shadow);
+}
+
+.friend-item {
+  padding: 12px;
+  background: white;
+  border-radius: 8px;
+  margin-bottom: 10px;
+  cursor: pointer;
+  font-weight: bold;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+}
+
+.friend-item:hover, .friend-item.active {
+  background: var(--btn-green);
+}
+
+/* Right: Chat Window */
+.chat-panel {
+  flex: 1;
+  background: var(--card);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--shadow);
+  color: var(--text-dark);
+}
+
+.chat-header {
+  padding: 15px;
+  background: rgba(0,0,0,0.05);
+  border-bottom: 2px solid rgba(0,0,0,0.1);
+  font-weight: bold;
+  font-size: 18px;
+  border-radius: 12px 12px 0 0;
+}
+
+.chat-history {
+  flex: 1;
+  padding: 15px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.message {
+  max-width: 70%;
+  padding: 10px 14px;
+  border-radius: 12px;
+  line-height: 1.4;
+}
+
+.message.received {
+  background: white;
+  align-self: flex-start;
+  border-bottom-left-radius: 2px;
+}
+
+.message.sent {
+  background: var(--btn-green);
+  align-self: flex-end;
+  border-bottom-right-radius: 2px;
+}
+
+.msg-time {
+  font-size: 10px;
+  opacity: 0.6;
+  margin-top: 5px;
+  text-align: right;
+}
+
+.chat-input {
+  padding: 15px;
+  display: flex;
+  gap: 10px;
+  background: rgba(0,0,0,0.05);
+  border-radius: 0 0 12px 12px;
+}
+
+.chat-input input {
+  flex: 1;
+  padding: 12px;
+  border-radius: 8px;
+  border: none;
+  font-family: var(--font);
+}
+
+.chat-input button {
+  padding: 12px 20px;
+  border: none;
+  border-radius: 8px;
+  background: var(--bg-main);
+  color: white;
+  font-family: var(--font);
+  font-weight: bold;
+  cursor: pointer;
+}
+.chat-input button:hover { filter: brightness(1.2); }
+</style>
+</head>
+
+<body>
+<div class="app">
+
+<aside class="sidebar">
+  <div class="sidebar-title">FitCompass</div>
+  <div class="nav">
+      <button onclick="location.href='{{ url_for('home') }}'">Home</button>
+      <button onclick="location.href='{{ url_for('profile') }}'">Profile</button>
+      <button onclick="location.href='{{ url_for('inbox') }}'">Inbox</button>
+      <button onclick="location.href='{{ url_for('history') }}'">History</button>
+      <button onclick="location.href='{{ url_for('library') }}'">Library</button>
+      <button onclick="location.href='{{ url_for('shop') }}'">Shop</button>
+  </div>
+  <div class="logout">
+    <button onclick="location.href='{{ url_for('logout') }}'">Log Out</button>
+  </div>
+</aside>
+
+<main class="main">
+  <div class="banner">
+    <strong>Direct Messages</strong>
+  </div>
+
+  <div class="inbox-container">
+    <div class="friends-panel" id="friendsList">
+      <!-- Friends loaded via JS -->
+    </div>
+
+    <div class="chat-panel" id="chatPanel" style="display: none;">
+      <div class="chat-header" id="chatHeader">Select a friend to chat</div>
+      <div class="chat-history" id="chatHistory">
+        <!-- Messages go here -->
+      </div>
+      <div class="chat-input">
+        <input type="text" id="msgInput" placeholder="Type a message..." onkeypress="handleEnter(event)">
+        <button onclick="sendMessage()">Send</button>
+      </div>
+    </div>
+  </div>
+</main>
+</div>
+
+<script>
+  let currentActiveFriend = null;
+  const myUsername = "{{ username }}";
+
+  async function loadFriends() {
+    try {
+      const response = await fetch('/get_friends');
+      const friends = await response.json();
+      const listDiv = document.getElementById('friendsList');
+      listDiv.innerHTML = '<h3>Conversations</h3>';
+
+      if (friends.length === 0) {
+        listDiv.innerHTML += '<p style="font-size:12px; color:#555;">No friends added yet. Head to your Profile to add some!</p>';
+        return;
+      }
+
+      friends.forEach(f => {
+        const div = document.createElement('div');
+        div.className = 'friend-item';
+        div.innerText = f.username;
+        div.onclick = () => openChat(f.username, div);
+        listDiv.appendChild(div);
+      });
+    } catch (e) {
+      console.error("Failed to load friends", e);
+    }
+  }
+
+  function openChat(friendUsername, element) {
+    currentActiveFriend = friendUsername;
+    
+    // Highlight selected friend
+    document.querySelectorAll('.friend-item').forEach(el => el.classList.remove('active'));
+    element.classList.add('active');
+
+    // Show chat panel
+    document.getElementById('chatPanel').style.display = 'flex';
+    document.getElementById('chatHeader').innerText = `Chat with ${friendUsername}`;
+    
+    fetchMessages();
+  }
+
+  async function fetchMessages() {
+    if (!currentActiveFriend) return;
+
+    try {
+      const response = await fetch(`/get_conversation/${currentActiveFriend}`);
+      const messages = await response.json();
+      const historyDiv = document.getElementById('chatHistory');
+      historyDiv.innerHTML = '';
+
+      messages.forEach(msg => {
+        const isMe = msg.sender === myUsername;
+        historyDiv.innerHTML += `
+          <div class="message ${isMe ? 'sent' : 'received'}">
+            <div>${msg.message}</div>
+            <div class="msg-time">${msg.timestamp || ''}</div>
+          </div>
+        `;
+      });
+
+      // Scroll to bottom
+      historyDiv.scrollTop = historyDiv.scrollHeight;
+    } catch (e) {
+      console.error("Failed to fetch messages", e);
+    }
+  }
+
+  async function sendMessage() {
+    if (!currentActiveFriend) return;
+    
+    const input = document.getElementById('msgInput');
+    const text = input.value.trim();
+    if (!text) return;
+
+    try {
+      await fetch('/send_message', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ receiver: currentActiveFriend, message: text })
+      });
+      
+      input.value = '';
+      fetchMessages(); // Refresh chat to show the new message
+    } catch (e) {
+      console.error("Failed to send message", e);
+    }
+  }
+
+  function handleEnter(e) {
+    if (e.key === 'Enter') {
+      sendMessage();
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', loadFriends);
+  
+  // Auto-refresh chat every 5 seconds if a conversation is open
+  setInterval(() => {
+    if (currentActiveFriend) fetchMessages();
+  }, 5000);
+</script>
+</body>
+</html>
