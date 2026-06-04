@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FitCompass — Admin</title>
+  <style>
+    :root {
+      --bg:       #0f2330;
+      --sidebar:  #0a1a26;
+      --card:     #162d3e;
+      --border:   rgba(255,255,255,.08);
+      --accent:   #2e87c8;
+      --accent2:  #1a5f8f;
+      --green:    #4caf7d;
+      --red:      #e05c5c;
+      --amber:    #e09a30;
+      --text:     #e8f4fc;
+      --muted:    #7eaec8;
+      --font:     ui-monospace, Menlo, Consolas, monospace;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: var(--font); background: var(--bg); color: var(--text);
+           display: flex; min-height: 100vh; font-size: 13px; }
+
+    .sidebar { width: 220px; background: var(--sidebar); border-right: 1px solid var(--border);
+               display: flex; flex-direction: column; flex-shrink: 0; position: sticky; top: 0; height: 100vh; }
+    .sidebar-logo { padding: 20px 18px 16px; border-bottom: 1px solid var(--border); }
+    .sidebar-logo .title { font-size: 15px; font-weight: 700; color: var(--accent); letter-spacing: .02em; }
+    .sidebar-logo .sub   { font-size: 11px; color: var(--muted); margin-top: 3px; }
+    nav { padding: 10px 0; flex: 1; }
+    nav a { display: flex; align-items: center; gap: 9px; padding: 9px 18px;
+            color: var(--muted); text-decoration: none; transition: all .15s; font-size: 13px; }
+    nav a:hover { color: var(--text); background: rgba(255,255,255,.04); }
+    nav a.active { color: var(--accent); background: rgba(46,135,200,.12);
+                   border-left: 2px solid var(--accent); }
+    nav a svg { width: 15px; height: 15px; flex-shrink: 0; }
+    .sidebar-footer { padding: 12px 18px; border-top: 1px solid var(--border); font-size: 11px; color: var(--muted); }
+
+    .main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+    .topbar { display: flex; align-items: center; justify-content: space-between;
+              padding: 14px 24px; background: var(--sidebar); border-bottom: 1px solid var(--border); }
+    .topbar h1 { font-size: 15px; font-weight: 600; }
+    .badge { font-size: 11px; padding: 3px 10px; border-radius: 20px;
+             background: rgba(46,135,200,.2); color: var(--accent); }
+    .content { padding: 24px; flex: 1; }
+
+    .flash { padding: 10px 14px; border-radius: 6px; margin-bottom: 18px; font-size: 13px; }
+    .flash.success { background: rgba(76,175,125,.15); border: 1px solid rgba(76,175,125,.4); color: #7ed9a8; }
+    .flash.danger  { background: rgba(224, 92, 92,.15); border: 1px solid rgba(224,92,92,.4); color: #f0a0a0; }
+    .flash.warning { background: rgba(224,154, 48,.15); border: 1px solid rgba(224,154,48,.4); color: #f0c878; }
+
+    .tabs { display: flex; gap: 4px; margin-bottom: 22px; border-bottom: 1px solid var(--border); padding-bottom: 0; }
+    .tab { padding: 8px 16px; border-radius: 6px 6px 0 0; cursor: pointer; color: var(--muted);
+           font-size: 13px; background: none; border: 1px solid transparent;
+           border-bottom: none; margin-bottom: -1px; }
+    .tab.active { color: var(--text); background: var(--card); border-color: var(--border); }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 22px; }
+    .metric { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; }
+    .metric .label { font-size: 11px; color: var(--muted); text-transform: uppercase;
+                     letter-spacing: .06em; margin-bottom: 8px; }
+    .metric .val   { font-size: 26px; font-weight: 700; color: var(--text); }
+    .metric .sub   { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+            padding: 18px; margin-bottom: 18px; }
+    .card-head { display: flex; align-items: center; justify-content: space-between;
+                 margin-bottom: 14px; }
+    .card-head h2 { font-size: 13px; font-weight: 600; color: var(--text); }
+
+    .tbl-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    thead th { text-align: left; padding: 8px 10px; color: var(--muted);
+               font-size: 11px; text-transform: uppercase; letter-spacing: .05em;
+               border-bottom: 1px solid var(--border); font-weight: 500; }
+    tbody tr { border-bottom: 1px solid var(--border); }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: rgba(255,255,255,.03); }
+    tbody td { padding: 10px; color: var(--text); vertical-align: top; }
+
+    .pill { display: inline-block; font-size: 10px; padding: 2px 7px; border-radius: 20px;
+            font-weight: 600; letter-spacing: .02em; }
+    .pill-blue   { background: rgba(46,135,200,.2);  color: #7ec8f0; }
+    .pill-green  { background: rgba(76,175,125,.2);  color: #7ed9a8; }
+    .pill-amber  { background: rgba(224,154, 48,.2); color: #f0c878; }
+    .pill-red    { background: rgba(224, 92, 92,.2); color: #f0a0a0; }
+    .pill-gray   { background: rgba(255,255,255,.08); color: var(--muted); }
+
+    button, .btn { font-family: var(--font); font-size: 12px; cursor: pointer;
+                   border-radius: 5px; padding: 5px 12px; transition: all .15s; }
+    .btn-primary { background: var(--accent);  color: #fff; border: none; }
+    .btn-primary:hover { background: var(--accent2); }
+    .btn-sm      { padding: 3px 9px; font-size: 11px; }
+    .btn-ghost   { background: transparent; border: 1px solid var(--border); color: var(--muted); }
+    .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-danger  { background: transparent; border: 1px solid rgba(224,92,92,.4); color: #f0a0a0; }
+    .btn-danger:hover { background: rgba(224,92,92,.15); }
+    .btn-success { background: transparent; border: 1px solid rgba(76,175,125,.4); color: #7ed9a8; }
+    .btn-success:hover { background: rgba(76,175,125,.15); }
+    .btn-row     { display: flex; gap: 6px; flex-wrap: wrap; }
+
+    .form-grid   { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .form-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+    .fg { display: flex; flex-direction: column; gap: 4px; }
+    .fg label { font-size: 11px; color: var(--muted); text-transform: uppercase;
+                letter-spacing: .05em; }
+    input[type=text], input[type=email], input[type=password],
+    input[type=number], select, textarea {
+      font-family: var(--font); font-size: 13px;
+      background: rgba(255,255,255,.05); border: 1px solid var(--border);
+      color: var(--text); border-radius: 5px; padding: 7px 10px; width: 100%; }
+    input:focus, select:focus, textarea:focus {
+      outline: none; border-color: var(--accent); }
+    select option { background: #0f2330; }
+
+    .modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.6);
+                z-index: 50; align-items: center; justify-content: center; }
+    .modal-bg.open { display: flex; }
+    .modal { background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+             padding: 22px; width: 480px; max-width: 96vw; max-height: 90vh; overflow-y: auto; }
+    .modal h3 { font-size: 14px; font-weight: 600; margin-bottom: 16px;
+                display: flex; justify-content: space-between; align-items: center; }
+    .modal h3 button { background: none; border: none; color: var(--muted); font-size: 18px;
+                       cursor: pointer; line-height: 1; }
+    .modal h3 button:hover { color: var(--text); }
+    .modal .form-grid { margin-bottom: 12px; }
+    .modal .fg       { margin-bottom: 10px; }
+
+    .sep { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+    .avatar { display: inline-flex; align-items: center; justify-content: center;
+              width: 26px; height: 26px; border-radius: 50%; font-size: 10px;
+              font-weight: 700; margin-right: 6px; flex-shrink: 0; }
+    .av0 { background: rgba(46,135,200,.3); color: #7ec8f0; }
+    .av1 { background: rgba(76,175,125,.3); color: #7ed9a8; }
+    .av2 { background: rgba(224,154, 48,.3); color: #f0c878; }
+    .inline { display: inline-flex; align-items: center; }
+    .muted  { color: var(--muted); }
+    .grid2  { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+    .stat-row { display: flex; justify-content: space-between; align-items: center;
+                padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 12px; }
+    .stat-row:last-child { border-bottom: none; }
+    .coin-tag::before { content: "🪙 "; }
+
+    .danger-zone { border: 1px solid rgba(224,92,92,.3); border-radius: 8px;
+                   padding: 16px; background: rgba(224,92,92,.05); }
+    .danger-zone h3 { font-size: 13px; color: #f0a0a0; margin-bottom: 12px; }
+    .danger-zone p  { font-size: 12px; color: var(--muted); margin-bottom: 12px; }
+  </style>
+</head>
+<body>
+
+<div class="sidebar">
+  <div class="sidebar-logo">
+    <div class="title">⊕ FitCompass</div>
+    <div class="sub">Admin Panel</div>
+  </div>
+  <nav>
+    <a href="#" class="active" onclick="switchTab('overview',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+      Overview
+    </a>
+    <a href="#" onclick="switchTab('users',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M21 21v-2a4 4 0 0 0-3-3.87"/></svg>
+      Users
+    </a>
+    <a href="#" onclick="switchTab('workouts',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 5v14M18 5v14M4 9h4M16 9h4M4 15h4M16 15h4"/></svg>
+      Workouts
+    </a>
+    <a href="#" onclick="switchTab('shop',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+      Shop / Outfits
+    </a>
+    <a href="#" onclick="switchTab('danger',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      Danger Zone
+    </a>
+  </nav>
+  <div class="sidebar-footer">Logged in as admin</div>
+</div>
+
+<div class="main">
+  <div class="topbar">
+    <h1 id="section-label">Overview</h1>
+    <span class="badge">🔐 Admin</span>
+  </div>
+
+  <div class="content">
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for cat, msg in messages %}
+        <div class="flash {{ cat }}">{{ msg }}</div>
+      {% endfor %}
+    {% endwith %}
+
+    <div class="tab-content active" id="tab-overview">
+      <div class="metrics">
+        <div class="metric">
+          <div class="label">Total users</div>
+          <div class="val">{{ total_users }}</div>
+        </div>
+        <div class="metric">
+          <div class="label">Total coins issued</div>
+          <div class="val">{{ "{:,}".format(total_coins) }}</div>
+          <div class="sub">across all accounts</div>
+        </div>
+        <div class="metric">
+          <div class="label">Workouts completed</div>
+          <div class="val">{{ total_workouts }}</div>
+          <div class="sub">all users combined</div>
+        </div>
+        <div class="metric">
+          <div class="label">Outfits owned</div>
+          <div class="val">{{ total_outfits }}</div>
+          <div class="sub">shop purchases</div>
+        </div>
+      </div>
+
+      <div class="grid2">
+        <div class="card">
+          <div class="card-head"><h2>Users at a glance</h2></div>
+          {% for u in users %}
+          <div class="stat-row">
+            <span>
+              <span class="avatar av{{ loop.index0 % 3 }}">{{ u.username[:2].upper() }}</span>
+              {{ u.username }}
+            </span>
+            <span>
+              <span class="pill pill-blue coin-tag">{{ "{:,}".format(u.coins or 0) }}</span>
+              &nbsp;
+              {% if u.goal %}
+                <span class="pill pill-green">{{ u.goal }}</span>
+              {% else %}
+                <span class="pill pill-gray">no goal</span>
+              {% endif %}
+            </span>
+          </div>
+          {% endfor %}
+        </div>
+
+        <div class="card">
+          <div class="card-head"><h2>Shop catalog</h2></div>
+          {% for name, price in outfit_catalog.items() %}
+          <div class="stat-row">
+            <span>{{ name }}</span>
+            <span class="pill {% if price == 0 %}pill-gray{% else %}pill-amber{% endif %}">
+              {% if price == 0 %}free (default){% else %}{{ "{:,}".format(price) }} coins{% endif %}
+            </span>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-content" id="tab-users">
+
+      <!-- Add user button -->
+      <div class="card-head" style="margin-bottom:16px">
+        <span></span>
+        <button class="btn btn-primary" onclick="openModal('modal-add-user')">+ Add user</button>
+      </div>
+
+      <div class="card">
+        <div class="tbl-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>User</th>
+                <th>Email</th>
+                <th>Goal</th>
+                <th>Freq/wk</th>
+                <th>Body part</th>
+                <th>Coins</th>
+                <th>Workouts</th>
+                <th>Outfits</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for u in users %}
+              <tr>
+                <td>
+                  <span class="inline">
+                    <span class="avatar av{{ loop.index0 % 3 }}">{{ u.username[:2].upper() }}</span>
+                    {{ u.username }}
+                  </span>
+                </td>
+                <td class="muted">{{ u.email }}</td>
+                <td>
+                  {% if u.goal %}
+                    <span class="pill pill-green">{{ u.goal }}</span>
+                  {% else %}
+                    <span class="pill pill-gray">—</span>
+                  {% endif %}
+                </td>
+                <td>{{ u.workouts_per_week or "—" }}</td>
+                <td>{{ u.body_part or "—" }}</td>
+                <td>
+                  {{ "{:,}".format(u.coins or 0) }}
+                  <br>
+                  <div class="btn-row" style="margin-top:4px">
+                    <form method="POST" action="/admin/adjust_coins/{{ u.id }}" style="display:flex;gap:4px">
+                      <input type="number" name="amount" value="150" style="width:60px;padding:3px 6px;font-size:11px">
+                      <button class="btn btn-success btn-sm" type="submit">+</button>
+                    </form>
+                    <form method="POST" action="/admin/adjust_coins/{{ u.id }}" style="display:flex;gap:4px">
+                      <input type="number" name="amount" value="-150" style="width:60px;padding:3px 6px;font-size:11px">
+                      <button class="btn btn-danger btn-sm" type="submit">−</button>
+                    </form>
+                  </div>
+                </td>
+                <td>
+                  {{ u.current_workout or 0 }}
+                  <br>
+                  <form method="POST" action="/admin/reset_workout_count/{{ u.id }}" style="margin-top:4px">
+                    <button class="btn btn-ghost btn-sm" type="submit">Reset</button>
+                  </form>
+                </td>
+                <td>
+                  {% if u.outfits %}
+                    {% for o in u.outfits %}
+                      <span class="pill pill-blue" style="margin-bottom:3px;display:inline-block">{{ o }}</span>
+                      <form method="POST" action="/admin/revoke_outfit/{{ u.id }}" style="display:inline">
+                        <input type="hidden" name="outfit" value="{{ o }}">
+                        <button class="btn btn-danger btn-sm" type="submit"
+                          title="Revoke {{ o }}" style="padding:1px 5px">✕</button>
+                      </form>
+                    {% endfor %}
+                  {% else %}
+                    <span class="muted">none</span>
+                  {% endif %}
+                  <br>
+                  <form method="POST" action="/admin/grant_outfit/{{ u.id }}" style="display:flex;gap:4px;margin-top:4px">
+                    <select name="outfit" style="padding:3px 6px;font-size:11px">
+                      {% for name in outfit_catalog %}
+                        {% if name not in u.outfits %}
+                          <option value="{{ name }}">{{ name }}</option>
+                        {% endif %}
+                      {% endfor %}
+                    </select>
+                    <button class="btn btn-success btn-sm" type="submit">Grant</button>
+                  </form>
+                </td>
+                <td>
+                  <div class="btn-row">
+                    <button class="btn btn-ghost btn-sm"
+                      onclick="openEditUser({{ u.id }}, '{{ u.username }}', '{{ u.email }}', {{ u.coins or 0 }}, '{{ u.goal or '' }}', {{ u.workouts_per_week or 0 }}, '{{ u.body_part or '' }}')">
+                      Edit
+                    </button>
+                    <form method="POST" action="/admin/delete_user/{{ u.id }}"
+                          onsubmit="return confirm('Delete {{ u.username }}? This cannot be undone.')">
+                      <button class="btn btn-danger btn-sm" type="submit">Delete</button>
+                    </form>
+                  </div>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-content" id="tab-workouts">
+      <div class="card">
+        <div class="card-head"><h2>Exercise library</h2></div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>Exercise</th><th>Category</th><th>Rep counter</th><th>Consistency score</th></tr></thead>
+            <tbody>
+              {% set no_consistency = ["Push-ups", "Glute Bridges", "Supermans", "V Pushups", "V pushups"] %}
+              {% for cat, exlist in exercises.items() %}
+                {% for ex in exlist %}
+                <tr>
+                  <td>{{ ex }}</td>
+                  <td><span class="pill
+                    {% if cat == 'cardio' %}pill-green
+                    {% elif cat == 'upper_body' %}pill-blue
+                    {% elif cat == 'lower_body' %}pill-amber
+                    {% else %}pill-gray{% endif %}">
+                    {{ cat.replace('_',' ') }}</span>
+                  </td>
+                  <td><span class="pill pill-green">✓ Yes</span></td>
+                  <td>
+                    {% if ex in no_consistency %}
+                      <span class="pill pill-red">✗ Not available</span>
+                    {% else %}
+                      <span class="pill pill-green">✓ Yes</span>
+                    {% endif %}
+                  </td>
+                </tr>
+                {% endfor %}
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="grid2">
+        <div class="card">
+          <div class="card-head"><h2>Workout plan logic</h2></div>
+          <div class="stat-row"><span class="muted">Goals</span><span>Get fit · Lose weight · Gain strength</span></div>
+          <div class="stat-row"><span class="muted">Body targets</span><span>Legs · Arms · Abdomen</span></div>
+          <div class="stat-row"><span class="muted">Modes</span><span>Balanced · Cardio · Strength</span></div>
+          <div class="stat-row"><span class="muted">Audio cues</span><span>25% · 50% · 75%</span></div>
+          <div class="stat-row"><span class="muted">Anti-cheat</span><span>Heel anchor + slope check</span></div>
+          <div class="stat-row"><span class="muted">Coins per workout</span><span>+150</span></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>Known issues</h2></div>
+          <div class="stat-row"><span class="muted">Consistency score missing for</span><span>Supermans, Push-ups, Glute bridges, V pushups</span></div>
+          <div class="stat-row"><span class="muted">History page</span><span>Some routes broken</span></div>
+          <div class="stat-row"><span class="muted">Settings page</span><span>Not yet implemented</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-content" id="tab-shop">
+
+      <div class="card">
+        <div class="card-head">
+          <h2>Outfit catalog</h2>
+          <button class="btn btn-primary" onclick="openModal('modal-add-outfit')">+ Add outfit</button>
+        </div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>Outfit</th><th>Price (coins)</th><th>Users who own it</th><th>Actions</th></tr></thead>
+            <tbody>
+              {% for name, price in outfit_catalog.items() %}
+              <tr>
+                <td>{{ name }}</td>
+                <td>
+                  {% if price == 0 %}
+                    <span class="pill pill-gray">Free (default)</span>
+                  {% else %}
+                    {{ "{:,}".format(price) }} coins
+                  {% endif %}
+                </td>
+                <td>
+                  {% set owners = [] %}
+                  {% for u in users %}
+                    {% if name in u.outfits %}{% set _ = owners.append(u.username) %}{% endif %}
+                  {% endfor %}
+                  {{ owners | join(", ") or "—" }}
+                </td>
+                <td>
+                  <div class="btn-row">
+                    <button class="btn btn-ghost btn-sm" onclick="openEditOutfit('{{ name }}', {{ price }})">Edit price</button>
+                    {% if name != "Business" %}
+                    <form method="POST" action="/admin/remove_outfit"
+                          onsubmit="return confirm('Remove {{ name }} from catalog?')">
+                      <input type="hidden" name="outfit" value="{{ name }}">
+                      <button class="btn btn-danger btn-sm" type="submit">Remove</button>
+                    </form>
+                    {% endif %}
+                  </div>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h2>Coin economy</h2></div>
+        <div class="stat-row"><span class="muted">Starting coins per new user</span><span>1,000</span></div>
+        <div class="stat-row"><span class="muted">Coins awarded per completed workout</span><span>+150</span></div>
+        <div class="stat-row"><span class="muted">Total coins in circulation</span><span>{{ "{:,}".format(total_coins) }}</span></div>
+      </div>
+    </div>
+
+    <div class="tab-content" id="tab-danger">
+      <div class="danger-zone">
+        <h3>⚠ Danger zone — irreversible actions</h3>
+        <p>These operations modify the live database. There is no undo. Confirm carefully before proceeding.</p>
+
+        <div class="card" style="background:transparent;border:1px solid rgba(224,92,92,.2)">
+          <div class="card-head"><h2 style="color:#f0a0a0">Reset all coin balances to 1,000</h2></div>
+          <p style="font-size:12px;color:var(--muted);margin-bottom:12px">
+            Sets every user's coins back to the starting amount. Outfit ownership is not affected.
+          </p>
+          <form method="POST" action="/admin/danger/reset_all_coins"
+                onsubmit="return confirm('Reset ALL user coins to 1,000? This cannot be undone.')">
+            <button class="btn btn-danger" type="submit">Reset all coins to 1,000</button>
+          </form>
+        </div>
+
+        <div class="card" style="margin-top:14px;background:transparent;border:1px solid rgba(224,92,92,.2)">
+          <div class="card-head"><h2 style="color:#f0a0a0">Clear all workout history</h2></div>
+          <p style="font-size:12px;color:var(--muted);margin-bottom:12px">
+            Sets <code>current_workout</code> to 0 and clears the <code>history</code> JSON for every user.
+          </p>
+          <form method="POST" action="/admin/danger/clear_all_history"
+                onsubmit="return confirm('Clear ALL workout history for every user? This cannot be undone.')">
+            <button class="btn btn-danger" type="submit">Clear all workout history</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="modal-bg" id="modal-add-user">
+  <div class="modal">
+    <h3>Add new user <button onclick="closeModal('modal-add-user')">✕</button></h3>
+    <form method="POST" action="/admin/add_user">
+      <div class="form-grid">
+        <div class="fg"><label>Username</label><input type="text" name="username" required placeholder="username"></div>
+        <div class="fg"><label>Email</label><input type="email" name="email" required placeholder="email@example.com"></div>
+      </div>
+      <div class="form-grid">
+        <div class="fg"><label>Password</label><input type="password" name="password" required placeholder="Will be hashed"></div>
+        <div class="fg"><label>Starting coins</label><input type="number" name="coins" value="1000" min="0"></div>
+      </div>
+      <div class="fg" style="margin-bottom:14px">
+        <label>Goal (optional)</label>
+        <select name="goal">
+          <option value="">— not set —</option>
+          <option value="get fit">Get fit</option>
+          <option value="lose weight">Lose weight</option>
+          <option value="gain strength">Gain strength</option>
+        </select>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" type="submit">Create user</button>
+        <button class="btn btn-ghost" type="button" onclick="closeModal('modal-add-user')">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal-bg" id="modal-edit-user">
+  <div class="modal">
+    <h3>Edit user <button onclick="closeModal('modal-edit-user')">✕</button></h3>
+    <form method="POST" id="edit-user-form" action="">
+      <div class="form-grid">
+        <div class="fg"><label>Username</label><input type="text" name="username" id="eu-username" required></div>
+        <div class="fg"><label>Email</label><input type="email" name="email" id="eu-email" required></div>
+      </div>
+      <div class="form-grid">
+        <div class="fg"><label>Coins</label><input type="number" name="coins" id="eu-coins" min="0"></div>
+        <div class="fg">
+          <label>Goal</label>
+          <select name="goal" id="eu-goal">
+            <option value="">— not set —</option>
+            <option value="get fit">Get fit</option>
+            <option value="lose weight">Lose weight</option>
+            <option value="gain strength">Gain strength</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-grid">
+        <div class="fg"><label>Workouts per week</label><input type="number" name="workouts_per_week" id="eu-wpw" min="0" max="7"></div>
+        <div class="fg">
+          <label>Body part focus</label>
+          <select name="body_part" id="eu-body">
+            <option value="">— not set —</option>
+            <option value="legs">Legs</option>
+            <option value="arms">Arms</option>
+            <option value="abdomen">Abdomen</option>
+          </select>
+        </div>
+      </div>
+      <div class="fg" style="margin-bottom:14px">
+        <label>New password <span class="muted">(leave blank to keep current)</span></label>
+        <input type="password" name="new_password" placeholder="Only fill to change password">
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" type="submit">Save changes</button>
+        <button class="btn btn-ghost" type="button" onclick="closeModal('modal-edit-user')">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal-bg" id="modal-edit-outfit">
+  <div class="modal">
+    <h3 id="modal-outfit-title">Edit outfit price <button onclick="closeModal('modal-edit-outfit')">✕</button></h3>
+    <form method="POST" action="/admin/update_catalog">
+      <input type="hidden" name="outfit" id="eo-name">
+      <div class="fg" style="margin-bottom:14px">
+        <label>Price (coins)</label>
+        <input type="number" name="price" id="eo-price" min="0" required>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" type="submit">Save price</button>
+        <button class="btn btn-ghost" type="button" onclick="closeModal('modal-edit-outfit')">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal-bg" id="modal-add-outfit">
+  <div class="modal">
+    <h3>Add new outfit <button onclick="closeModal('modal-add-outfit')">✕</button></h3>
+    <form method="POST" action="/admin/add_outfit">
+      <div class="fg" style="margin-bottom:12px">
+        <label>Outfit name <span class="muted">(must match filename in /static/costumes/)</span></label>
+        <input type="text" name="name" required placeholder="e.g. Knight">
+      </div>
+      <div class="fg" style="margin-bottom:14px">
+        <label>Price (coins)</label>
+        <input type="number" name="price" value="500" min="0" required>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" type="submit">Add to catalog</button>
+        <button class="btn btn-ghost" type="button" onclick="closeModal('modal-add-outfit')">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+
+<script>
+const tabLabels = {
+  overview: 'Overview', users: 'Users',
+  workouts: 'Workouts', shop: 'Shop / Outfits', danger: 'Danger Zone'
+};
+function switchTab(name, el) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('nav a').forEach(a => a.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  el.classList.add('active');
+  document.getElementById('section-label').textContent = tabLabels[name];
+}
+
+function openModal(id)  { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-bg').forEach(m =>
+  m.addEventListener('click', e => { if (e.target === m) m.classList.remove('open'); })
+);
+
+function openEditUser(id, username, email, coins, goal, wpw, body) {
+  document.getElementById('edit-user-form').action = '/admin/edit_user/' + id;
+  document.getElementById('eu-username').value = username;
+  document.getElementById('eu-email').value    = email;
+  document.getElementById('eu-coins').value    = coins;
+  document.getElementById('eu-goal').value     = goal;
+  document.getElementById('eu-wpw').value      = wpw || '';
+  document.getElementById('eu-body').value     = body || '';
+  openModal('modal-edit-user');
+}
+
+function openEditOutfit(name, price) {
+  document.getElementById('modal-outfit-title').innerHTML =
+    'Edit price — ' + name + ' <button onclick="closeModal(\'modal-edit-outfit\')">✕</button>';
+  document.getElementById('eo-name').value  = name;
+  document.getElementById('eo-price').value = price;
+  openModal('modal-edit-outfit');
+}
+
+const urlHash = window.location.hash;
+if (urlHash === '#users') {
+  switchTab('users', document.querySelector('nav a:nth-child(2)'));
+}
+</script>
+</body>
+</html>
