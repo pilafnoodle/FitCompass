@@ -6,7 +6,6 @@
   <title>Workout Complete</title>
 
   <style>
-
     :root{
       --font:ui-monospace, Menlo, Consolas, monospace;
     }
@@ -20,7 +19,8 @@
       margin: 0;
       min-height: 100vh;
       background: #0a4f73;
-      overflow: hidden;
+      overflow: hidden; /* Added auto to allow scrolling if screen is small */
+      overflow-y: auto;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -61,17 +61,21 @@
       text-align: center;
       width: 100%;
       max-width: 450px;
+      background: rgba(0, 0, 0, 0.2);
+      padding: 30px;
+      border-radius: 12px;
     }
 
     h1 {
       letter-spacing: 4px;
-      margin-bottom: 40px;
+      margin-bottom: 30px;
+      font-size: 28px;
     }
 
     .avatar-complete {
       width: 150px;
       height: 220px;
-      margin: 0 auto 40px;
+      margin: 0 auto 20px;
       position: relative;
     }
 
@@ -93,12 +97,14 @@
     .continue-btn {
       background: #9be37b;
       border: none;
-      padding: 18px 48px;
-      font-size: 28px;
+      padding: 16px 40px;
+      font-size: 24px;
       border-radius: 6px;
       cursor: pointer;
       letter-spacing: 3px;
       font-family: var(--font);
+      width: 100%;
+      margin-top: 15px;
     }
 
     .continue-btn:hover {
@@ -110,38 +116,89 @@
       color: black;
     }
 
-
-    @media (max-width: 600px) {
-
-      h1 {
-        font-size: 22px;
-        margin-bottom: 30px;
-      }
-
-      .avatar-complete {
-        width: 120px;
-        height: 180px;
-      }
-
-      .continue-btn {
-        font-size: 22px;
-        padding: 14px 34px;
-      }
-
-    }
-
     .std-display {
       display: none; 
+      margin: 5px 0;
+      color: #d8eff4;
     }
- @keyframes bounce {
-  0%   { transform: translateY(0); }
-  50%  { transform: translateY(-12px); }
-  100% { transform: translateY(0); }
-}
 
-.bounce {
-  animation: bounce 1s ease-in-out infinite;
-}
+    @keyframes bounce {
+      0%   { transform: translateY(0); }
+      50%  { transform: translateY(-12px); }
+      100% { transform: translateY(0); }
+    }
+
+    .bounce {
+      animation: bounce 1s ease-in-out infinite;
+    }
+
+    /* --- STAR RATING CSS --- */
+    .rating-container {
+      background: rgba(255, 255, 255, 0.1);
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+
+    .rating-container p {
+      margin: 0 0 10px 0;
+      font-weight: bold;
+    }
+
+    .stars {
+      display: flex;
+      justify-content: center;
+      flex-direction: row-reverse; /* Magic trick for hover logic */
+      font-size: 40px;
+      cursor: pointer;
+    }
+
+    .star {
+      color: #ccc; /* Default grey star */
+      transition: color 0.2s;
+    }
+
+    /* Hover fills the current star and all stars to its right (visually left due to row-reverse) */
+    .star:hover,
+    .star:hover ~ .star,
+    .star.selected,
+    .star.selected ~ .star {
+      color: #ffd966; /* Gold */
+    }
+
+    .review-box {
+      display: none; /* Hidden until a star is clicked */
+      margin-top: 15px;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .review-box textarea {
+      width: 100%;
+      height: 60px;
+      padding: 10px;
+      border-radius: 6px;
+      border: none;
+      font-family: var(--font);
+      resize: none;
+    }
+
+    .review-box button {
+      background: #6ec6ff;
+      border: none;
+      padding: 10px;
+      border-radius: 6px;
+      font-family: var(--font);
+      font-weight: bold;
+      cursor: pointer;
+      color: #0f1a1f;
+    }
+
+    @media (max-width: 600px) {
+      h1 { font-size: 22px; margin-bottom: 20px; }
+      .avatar-complete { width: 120px; height: 180px; }
+      .continue-btn { font-size: 20px; padding: 12px 30px; }
+    }
   </style>
 </head>
 
@@ -151,14 +208,18 @@
 
   <div class="card">
     <h1>WORKOUT COMPLETE!</h1>
-    <p>Total reps: {{ this_total_reps }} reps</p>
+    
+    <div style="margin-bottom: 20px;">
+      <p style="margin: 5px 0;">Total reps: <strong>{{ this_total_reps }}</strong></p>
+      <p style="margin: 5px 0;">Time: <strong>{{ "%.1f"|format(this_workout_duration) }} sec</strong></p>
+      
+      <p id="squats-row" class="std-display">Squat consistency: <span id="squats-std">...</span></p>
+      <p id="lunges-row" class="std-display">Lunge consistency: <span id="lunges-std">...</span></p>
+      <p id="situps-row" class="std-display">Situp consistency: <span id="situps-std">...</span></p>
+    </div>
 
-  <p>Time to complete: {{ "%.1f"|format(this_workout_duration) }} seconds</p>
-  <p id="squats-row" class="std-display">Squat consistency: <span id="squats-std">...</span></p>
-  <p id="lunges-row" class="std-display">Lunge consistency: <span id="lunges-std">...</span></p>
-  <p id="situps-row" class="std-display">Situp consistency: <span id="situps-std">...</span></p>
     <div class="avatar-complete">
-      <div  class=" bounce michalis-layers">
+      <div class="bounce michalis-layers">
         <div class="base-body"> 
           <img src="{{ url_for('static', filename='michalis/template.png') }}" alt="template">  
         </div>
@@ -169,12 +230,32 @@
           <img src="{{ url_for('static', filename='michalis/bigsmile.png') }}" alt="smile">   
         </div> 
         <img id="layer-sleeves" 
-                    src="{{ url_for('static', filename='outfits/high arms/' + (equipped if equipped else 'business') + ' high arms.png') }}" 
-                    alt="sleeves">  
+             src="{{ url_for('static', filename='outfits/high arms/' + (equipped if equipped else 'business') + ' high arms.png') }}" 
+             alt="sleeves">  
         <div class="torso">
           <img src="{{ url_for('static', filename='outfits/torso/' + (equipped if equipped else 'business') + ' torso.png') }}" alt="torso">  
         </div>
       </div>
+    </div>
+
+    <div class="rating-container" id="ratingUI">
+      <p>How was your workout?</p>
+      <div class="stars">
+        <span class="star" data-value="5">&#9733;</span>
+        <span class="star" data-value="4">&#9733;</span>
+        <span class="star" data-value="3">&#9733;</span>
+        <span class="star" data-value="2">&#9733;</span>
+        <span class="star" data-value="1">&#9733;</span>
+      </div>
+      
+      <div class="review-box" id="reviewBox">
+        <textarea id="reviewComment" placeholder="Leave a comment about this routine (optional)..."></textarea>
+        <button onclick="submitStarReview()">Submit Review</button>
+      </div>
+      
+      <p id="thankYouMsg" style="display: none; color: #9be37b; font-weight: bold; margin-top: 10px;">
+        ⭐ Thanks for your feedback! ⭐
+      </p>
     </div>
 
     <a href="{{ url_for('home') }}">
@@ -183,80 +264,111 @@
   </div>
 
   <script>
-    const completeChimes = new Audio("{{ url_for('static', filename='audio/complete.mp3') }}");
-    async function getConsistencyScore() {
-    try {
-        completeChimes.play();
-        const response =  await fetch('/get_interval_std');
-        const stats =  await response.json(); // intervalSTDMap dict
-
-        for (const [exercise, score] of Object.entries(stats)) {
-            const row = document.getElementById(`${exercise}-row`);
-            const span = document.getElementById(`${exercise}-std`);
-            
-            if (row && span) {
-                span.innerText = ` ${score}%`;
-                // show the <p>
-                row.style.display = "block"; 
-            }
-        }
-        } catch (error) {
-            console.error("Failed to fetch consistency stats:", error);
-        }
-      }
-      
-  document.addEventListener('DOMContentLoaded', () => {
-    getConsistencyScore();
-  });
-
-  const arms = document.querySelector(".base-arms img");
-
-
-
+    // --- CONFETTI LOGIC ---
     const confettiContainer = document.querySelector('.confetti');
     const colors = ['#ffd966', '#ff6f61', '#6ec6ff', '#9be37b', '#ffffff'];
 
     for (let i = 0; i < 150; i++) {
       const confetti = document.createElement('div');
       confetti.classList.add('confetti-piece');
-
       confetti.style.left = Math.random() * 100 + 'vw';
       confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
       confetti.style.animationDuration = (Math.random() * 3 + 2) + 's';
       confetti.style.animationDelay = Math.random() * 5 + 's';
-
       confettiContainer.appendChild(confetti);
+    }
+
+    // --- WORKOUT STATS & LOGGING LOGIC ---
+    const completeChimes = new Audio("{{ url_for('static', filename='audio/complete.mp3') }}");
+    
+    // Globally store the workout name so the Review System knows what workout this was
+    let currentGlobalWorkoutName = "{{ current_workout_name }}".trim() || "Free_Workout";
+
+    async function getConsistencyScore() {
+      try {
+          completeChimes.play();
+          const response =  await fetch('/get_interval_std');
+          const stats =  await response.json(); 
+
+          for (const [exercise, score] of Object.entries(stats)) {
+              const row = document.getElementById(`${exercise}-row`);
+              const span = document.getElementById(`${exercise}-std`);
+              
+              if (row && span) {
+                  span.innerText = ` ${score}%`;
+                  row.style.display = "block"; 
+              }
+          }
+      } catch (error) {
+          console.error("Failed to fetch consistency stats:", error);
+      }
     }
 
     async function logWorkoutToHistory() {
       try {
-        let planName = "{{ current_workout_name }}".trim(); 
-        
-        if (!planName || planName === "None" || planName === "") {
-            planName = "MichalisMode1"; //default
-        }
-
-        console.log("Sending logged name payload to database:", planName);
-
         const response = await fetch('/log_completed_workout', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ workout_name: planName }),
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ workout_name: currentGlobalWorkoutName }),
         });
-
         const result = await response.json();
-        console.log("Save completion status:", result);
-
       } catch (error) {
-        console.error("Error running history collection script:", error);
+        console.error("Error logging workout:", error);
       }
     }
 
     document.addEventListener('DOMContentLoaded', () => {
+      getConsistencyScore();
       logWorkoutToHistory();
     });
+
+    // --- STAR RATING LOGIC ---
+    let chosenRating = 0;
+    const stars = document.querySelectorAll('.star');
+    const reviewBox = document.getElementById('reviewBox');
+    const thankYouMsg = document.getElementById('thankYouMsg');
+
+    // Add click events to all stars
+    stars.forEach(star => {
+      star.addEventListener('click', (e) => {
+        // Reset previously selected stars
+        stars.forEach(s => s.classList.remove('selected'));
+        
+        // Mark clicked star and show comment box
+        e.target.classList.add('selected');
+        chosenRating = parseInt(e.target.getAttribute('data-value'));
+        reviewBox.style.display = 'flex'; 
+      });
+    });
+
+    async function submitStarReview() {
+      if (chosenRating === 0) return; // shouldn't happen, but safe check
+      
+      const commentText = document.getElementById('reviewComment').value;
+
+      try {
+        const response = await fetch('/submit_review', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            workout_id: currentGlobalWorkoutName, 
+            rating: chosenRating,
+            comment: commentText
+          })
+        });
+
+        if (response.ok) {
+          // Hide the stars and comment box, show thank you!
+          document.querySelector('.stars').style.display = 'none';
+          reviewBox.style.display = 'none';
+          document.querySelector('.rating-container p').style.display = 'none';
+          thankYouMsg.style.display = 'block';
+        }
+      } catch (error) {
+        console.error("Error submitting review:", error);
+        alert("Failed to submit review.");
+      }
+    }
   </script>
 
 </body>
